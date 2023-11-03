@@ -32,6 +32,8 @@ theory re: white immigs: coercion / rehab in NE, yeoman uplift in W, frontier as
 
 (GENERAL FRAMEWORK: Racial capitalism / settler colonization) MATERIAL CONDITIONS FOR SETTLER COLONIZATION STRUCTURE POLICY DESIGN. socio-political processes generate diverse white elite interests
 
+SETTLER COLONIALISM AS STRUCTURE - PROCESS. BUT SPATIALLY VARIABLE DEPENDING ON LOCAL INTERESTS
+
 1. Frontier settler polity -> elite interest in disposession / assimiatilion -> aggressive paternalistic welfare state for AIAN, social democracy for settlers
 2. Jim Crow -> elite interest in exploitation and exclusion -> elite paternalism, malign neglect, hard coercion
 3. Metropole settler polity -> elite interests in labor discipline / immig assimilation -> progressive paternalism, strong coercive welfare state for W, hard coercion and contested welfare for Blk
@@ -74,152 +76,158 @@ negative case re: black underdevelopment h1: no social workers in places with la
 
 positive case: white immigrants -> more social workers in t1
 
-```{r read, cache = T}
+```{r read}
 # ### on libra, read raw
 # ### read employment data
 # ### full ts of occupations ADD CONSTABLES, THERES A DECENT NUMBER OF THEM
-# dat_occ<-read_csv("./data/usa_00071.csv") %>% 
-#   rename_all(tolower) %>% 
-#   mutate(occ1950 = 
-#            case_when(
-#              occ1950 == 79 ~ "socwork",
-#              occ1950 == 773 ~ "police",
-#              occ1950 == 771 ~ "police",
-#              occ1950 == 782 ~ "police",
-#              occ1950 == 93 ~ "teachers"
-#            )) %>% 
-#   group_by(year, statefip, occ1950) %>% 
-#   summarize(emp = sum(perwt)) %>% 
-#   pivot_wider(names_from = occ1950, values_from = emp,
-#               values_fill = 0)
-# ### AK OR HI HERE? check that at IPUMS
-# 
-# # pop data (total, age, race, nativitiy, urban)
-# dat_immig<-read_csv("./data/usa_00070.csv") %>% 
-#   rename_all(tolower) %>% 
-#   group_by(year, statefip) %>% 
-#   summarize(tot_pop = sum(perwt),
-#             children = sum((age<18) * perwt),
-#             white_immig = 
-#               sum((nativity == 5) * (race == 1) * (hispan == 0) * perwt),
-#             blk = 
-#               sum((race == 2) * perwt),
-#             urban = sum(hhwt * (urban ==2)),
-#             tot_hh = sum(hhwt)) 
-# ### AK OR HI HERE? check that at IPUMS
-# 
-# 
-# ### group quarters data, 100% 
-# gq<-read_csv("./data/usa_00069.csv") %>% 
-#   rename_all(tolower) %>% 
-#   filter(age<18) %>% 
-#   group_by(year, statefip, gqtype) %>% 
-#   summarize(gq_pop = sum(perwt, na.rm = T)) %>% 
-#   mutate(gqtype = case_when(
-#     gqtype == 2 ~ "child_inst_correctional",
-#     gqtype == 3 ~ "child_inst_mental",
-#     gqtype == 4 ~ "child_inst_poor_disabled")) %>% 
-#   filter(gqtype!="other") %>% 
-#   pivot_wider(names_from = gqtype, values_from = gq_pop,
-#               values_fill = 0)
-# ### AK OR HI HERE? check that at IPUMS
-# 
-#  
-# ### join
-# dat <- data.frame(state = state.abb, 
-#                region = state.region, 
-#                division = state.division) %>% 
-#   left_join(state.fips %>% 
-#               select(fips, abb) %>% 
-#               distinct() %>% 
-#               rename(state = abb, statefip = fips)) %>% 
-#   left_join(dat_immig) %>% 
-#   left_join(dat_occ) %>% 
-#   ungroup() %>% 
-#   left_join(gq)
-# 
-# ### homestead act data
-# #### load in homestead data and boarding school data
-# ### state measure can be cumulative sum of homesteads, that gets at polity
-# ### homesteading data
-# y_o_s <- read_csv("./data/year_of_statehood.csv") %>% 
-#   left_join(dat %>% 
-#               select(state, region) %>% 
-#               distinct()) 
-# 
-# hs<-read_csv("./data/blm_homesteads_clean.csv") %>% 
-#   pivot_longer(claims1868:acres1961,
-#                names_to = "name",
-#                values_to = "value") %>% 
-#   mutate(year = str_sub(
-#     name, start = -4, end = -1),
-#     type = str_sub(
-#       name, start = 1, end = -5)) %>% 
-#   select(-name) %>% 
-#   mutate(year = as.numeric(year)) %>% 
-#   mutate(value = ifelse(is.na(value),
-#                         0,
-#                         value))
-# 
-# ### split Dakota Territory values to 0.5 ND, 0.5 SD to preserve time series
-# hs_dakota<-hs %>% 
-#   filter(state == "Dakota Territory") %>% 
-#   mutate(value = value / 2) %>% 
-#   select(-state)
-# 
-# hs<-hs %>% 
-#   bind_rows(hs_dakota %>% 
-#               mutate(state = "North Dakota")) %>% 
-#   bind_rows(hs_dakota %>% 
-#               mutate( state = "South Dakota")) %>% 
-#   filter(state != "Dakota Territory") %>% 
-#   group_by(state, year, type) %>% 
-#   summarize(value = sum(value))
-#   
-# hs<-hs %>% 
-#   arrange(state, year) %>% 
-#   group_by(state, type) %>% 
-#   mutate(cum_value = cumsum(value)) %>% 
-#   ungroup()
-# 
-# ## expand_grid to add zeroes
-# ### use y_o_s for index
-# state<-unique(y_o_s$statename)
-# year<-unique(hs$year)
-# type<-unique(hs$type)
-# temp<-expand_grid(state, year, type)
-# 
-# hs<-temp %>% 
-#   left_join(hs) %>% 
-#   replace_na(list(value = 0,
-#                   cum_value = 0))
-# 
-# hs <- hs %>% 
-#   select(-value) %>% 
-#   pivot_wider(names_from = type,
-#               values_from = cum_value,
-#               names_prefix = "hs_") 
-# 
-# ### add ID and pop vars back to hs
-# 
-# y_o_s <- read_csv("./data/year_of_statehood.csv") %>% 
-#   left_join(dat %>% 
-#               select(state, region) %>% 
-#               distinct()) %>% 
-#   filter(!(is.na(region)))
-# 
-# hs<-hs %>% 
-#   rename(statename = state) %>% 
-#   left_join(y_o_s)
-# 
-# #### join cumulative acres / claims onto dat for the valid census years, then carried forward
-# 
-# dat<-dat %>% 
-#   left_join(hs)
+dat_occ<-read_csv("./data/usa_00071.csv") %>%
+  rename_all(tolower) %>%
+  mutate(occ1950 =
+           case_when(
+             occ1950 == 79 ~ "socwork",
+             occ1950 == 773 ~ "police",
+             occ1950 == 771 ~ "police",
+             occ1950 == 782 ~ "police",
+             occ1950 == 93 ~ "teachers"
+           )) %>%
+  group_by(year, statefip, occ1950) %>%
+  summarize(emp = sum(perwt)) %>%
+  pivot_wider(names_from = occ1950, values_from = emp,
+              values_fill = 0)
+### AK OR HI HERE? check that at IPUMS
 
-# on local read temp
-dat<-read_csv("./data/temp_data.csv")
-hs<-read_csv("./data/temp_hs.csv")
+# pop data (total, age, race, nativitiy, urban, farm, landown)
+dat_immig<-read_csv("./data/usa_00072.csv") %>%
+  rename_all(tolower) %>%
+  group_by(year, statefip) %>%
+  summarize(tot_pop = sum(perwt),
+            children = sum((age<18) * perwt),
+            white_immig =
+              sum((nativity == 5) * (race == 1) * (hispan == 0) * perwt),
+            blk =
+              sum((race == 2) * perwt),
+            blk_sharecrop = 
+              sum((race==2) * (farm==2) * (ownershp==2) * perwt),
+            blk_farms = sum((race==2) * (farm==2) * perwt),
+            urban_pop = sum(hhwt * (urban ==2)),
+            urban_immig_pop = 
+              sum((urban==2) * 
+                    (nativity == 5) * (race == 1) * (hispan == 0) * perwt),
+            tot_hh = sum(hhwt))
+### AK OR HI HERE? check that at IPUMS
+
+
+### group quarters data, 100%
+gq<-read_csv("./data/usa_00069.csv") %>%
+  rename_all(tolower) %>%
+  filter(age<18) %>%
+  group_by(year, statefip, gqtype) %>%
+  summarize(gq_pop = sum(perwt, na.rm = T)) %>%
+  mutate(gqtype = case_when(
+    gqtype == 2 ~ "child_inst_correctional",
+    gqtype == 3 ~ "child_inst_mental",
+    gqtype == 4 ~ "child_inst_poor_disabled")) %>%
+  filter(gqtype!="other") %>%
+  pivot_wider(names_from = gqtype, values_from = gq_pop,
+              values_fill = 0)
+### AK OR HI HERE? check that at IPUMS
+
+
+### join
+dat <- data.frame(state = state.abb,
+               region = state.region,
+               division = state.division) %>%
+  left_join(state.fips %>%
+              select(fips, abb) %>%
+              distinct() %>%
+              rename(state = abb, statefip = fips)) %>%
+  left_join(dat_immig) %>%
+  left_join(dat_occ) %>%
+  ungroup() %>%
+  left_join(gq)
+
+### homestead act data
+#### load in homestead data and boarding school data
+### state measure can be cumulative sum of homesteads, that gets at polity
+### homesteading data
+y_o_s <- read_csv("./data/year_of_statehood.csv") %>%
+  left_join(dat %>%
+              select(state, region) %>%
+              distinct())
+
+hs<-read_csv("./data/blm_homesteads_clean.csv") %>%
+  pivot_longer(claims1868:acres1961,
+               names_to = "name",
+               values_to = "value") %>%
+  mutate(year = str_sub(
+    name, start = -4, end = -1),
+    type = str_sub(
+      name, start = 1, end = -5)) %>%
+  select(-name) %>%
+  mutate(year = as.numeric(year)) %>%
+  mutate(value = ifelse(is.na(value),
+                        0,
+                        value))
+
+### split Dakota Territory values to 0.5 ND, 0.5 SD to preserve time series
+hs_dakota<-hs %>%
+  filter(state == "Dakota Territory") %>%
+  mutate(value = value / 2) %>%
+  select(-state)
+
+hs<-hs %>%
+  bind_rows(hs_dakota %>%
+              mutate(state = "North Dakota")) %>%
+  bind_rows(hs_dakota %>%
+              mutate( state = "South Dakota")) %>%
+  filter(state != "Dakota Territory") %>%
+  group_by(state, year, type) %>%
+  summarize(value = sum(value))
+
+hs<-hs %>%
+  arrange(state, year) %>%
+  group_by(state, type) %>%
+  mutate(cum_value = cumsum(value)) %>%
+  ungroup()
+
+## expand_grid to add zeroes
+### use y_o_s for index
+state<-unique(y_o_s$statename)
+year<-unique(hs$year)
+type<-unique(hs$type)
+temp<-expand_grid(state, year, type)
+
+hs<-temp %>%
+  left_join(hs) %>%
+  replace_na(list(value = 0,
+                  cum_value = 0))
+
+hs <- hs %>%
+  select(-value) %>%
+  pivot_wider(names_from = type,
+              values_from = cum_value,
+              names_prefix = "hs_")
+
+### add ID and pop vars back to hs
+
+y_o_s <- read_csv("./data/year_of_statehood.csv") %>%
+  left_join(dat %>%
+              select(state, region) %>%
+              distinct()) %>%
+  filter(!(is.na(region)))
+
+hs<-hs %>%
+  rename(statename = state) %>%
+  left_join(y_o_s)
+
+#### join cumulative acres / claims onto dat for the valid census years, then carried forward
+
+dat<-dat %>%
+  left_join(hs)
+
+# # on local read temp
+# dat<-read_csv("./data/temp_data.csv")
+# hs<-read_csv("./data/temp_hs.csv")
 ```
 
 # methods
@@ -318,6 +326,39 @@ dat %>%
   theme_void() + 
   theme(legend.position = "bottom")
 ```
+
+next let's look at sharecropping
+
+```{r}
+ggplot(dat %>% 
+             filter(year == 1920,
+                    blk_farms >= 1e4),
+       aes(x = blk_farms, y = blk_sharecrop,
+           label = state)) + 
+  geom_text(alpha = 0.5) + 
+  geom_abline(slope = 1) + 
+  labs(x = "Black people living on farms",
+       y = "Black people living on tenant farms",
+       subtitle = "States with more than 10,000 Black persons living on farms, 1920")
+```
+
+And the bivar with sharecropping / blk pop comp
+
+```{r}
+ggplot(dat %>% 
+         filter(year == 1920),
+       aes(x = blk / tot_pop, y = blk_sharecrop,
+           label = state,
+           color = region)) + 
+  #geom_point(alpha = 0.5) + 
+  geom_text(alpha = 0.5) + 
+  scale_y_log10() + 
+  labs(x = "Proportion Black pop",
+       y = "Black people living on tenant farms",
+       subtitle = "States with more than 10,000 Black persons living on farms, 1920")
+```
+
+Places with large Black pops in 1920 also had very high sharecropping rates. Not a perfect correlation, VA and FL are negative off-trend, and lots of variance for low Black pop states, probably just measurement error though. Likely makese sense to use sharecropping as log count rather than as proportion. 
 
 ### Measuring the size, power, and interests of the expropriative settler polity 
 
@@ -449,23 +490,25 @@ Absolute white immigrant pop numbers increasing in NE, Increasing, then plateau 
 
 ### urban
 
-```{r urban-ts, fig.cap = "Urban population by state 1870-1940"}
+```{r urban-ts, fig.cap = "Urban white immigrant population by state 1870-1940"}
 p1<-ggplot(dat%>% 
-  filter(!(is.na(region))),
-       aes(x = year, y = urban / tot_hh,
-           group = state)) + 
+             filter(year<=1930) %>% 
+             filter(!(is.na(region))),
+           aes(x = year, y = urban_immig_pop / tot_pop,
+               group = state)) + 
   geom_line(alpha = 0.5) + 
-  labs(subtitle = "Proportion of households urban",
+  labs(subtitle = "Proportion of population white immigrant urban",
        y = "Proportion",
        x = "Year") + 
   facet_wrap(~region)
 
 p2<-ggplot(dat%>% 
-  filter(!(is.na(region))),
-       aes(x = year, y = urban,
-           group = state)) + 
+             filter(year<=1930) %>% 
+             filter(!(is.na(region))),
+           aes(x = year, y = urban_immig_pop,
+               group = state)) + 
   geom_line(alpha = 0.5) + 
-  labs(subtitle = "Number of households urban",
+  labs(subtitle = "White immigrant urban population",
        y = "Count",
        x = "Year")+ 
   facet_wrap(~region)
