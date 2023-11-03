@@ -727,6 +727,7 @@ model_dat <- dat %>%
          teacher_rate = (teachers + 1) / tot_pop * 1e5,
          child_inst_rate = (child_inst_poor_disabled + 0.1) / 
            children * 1e5,
+         prop_blk = (blk + 1) / tot_pop,
          hsclaim_prop = hs_claims / tot_pop,
          year = scale(year))
 
@@ -757,6 +758,38 @@ sc_gq<-brm(log(child_inst_rate) ~
               year + 
               (1 + year|state),
             data = model_dat)
+
+jc_police<-lmer(log(police_rate) ~ 
+              scale(prop_blk) +
+              year + 
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+
+jc_teacher<-lmer(log(teacher_rate) ~ 
+              scale(prop_blk) +
+              year + 
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+
+jc_socwork<-lmer(log(socwork_rate) ~ 
+              scale(prop_blk) +
+              year + 
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+
+jc_gq<-lmer(log(child_inst_rate) ~ 
+              scale(prop_blk) +
+              year + 
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
 ```
 
 This all looks fine. How do I want to visualize this? 
@@ -785,5 +818,7 @@ t1<-predict(sc_teacher,
            type = "link")
 
 exp(t1)
+
+
 ```
 
