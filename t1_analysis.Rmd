@@ -231,7 +231,6 @@ dat<-dat %>%
 ### this is cessions from the Royce maps, overlaps with morrill, but includes prior cessions as well
 ### would need to use shapefiles to portion out by state
 lgu_parcels<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Parcels.csv")
-lgu_unis<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Universities.csv")
 ```
 
 # methods
