@@ -1,8 +1,9 @@
 ---
-title: "Varying paths to building the social state in the progressive era"
+title: "Settler colonial projects and variation in paths to building the welfare and carceral state"
 author: "Frank Edwards"
-date: "last updated 11/1/23"
+date: "last updated `r Sys.Date()`"
 output: bookdown::html_document2
+abstract: "Place and time variation in problems of settler colonization are related to the kinds of governments that local settler elites build. "
 ---
 
 ```{r setup, include = F, message = F}
@@ -13,6 +14,7 @@ library(maps)
 library(usmap)
 library(grid)
 library(gridExtra)
+library(brms)
 options(scipen = 999)
 options(dplyr.print_max = 1e9)
 map<-map_data("state")
@@ -20,61 +22,55 @@ map<-map_data("state")
 theme_set(theme_minimal())
 ```
 
-# TO DO
+# TO DO 
 
-1. pull immig + urban data
-2. pull tenant farmer data
-3. model employment -> each, consider loglinear process?
 
-theory re: white immigs: coercion / rehab in NE, yeoman uplift in W, frontier as panacea for urban, lots of hist on that, gets at SocWork/Police vs Teachers employment
+
+
+
+leaving out railroad grants induces bias if morill or homestead grants are negatively correlated with railroad grants. 
+
+2. Lit review
+3. writeup demographics and bivars
+4. models
+
+
 
 # Theoretical framework
 
-(GENERAL FRAMEWORK: Racial capitalism / settler colonization) MATERIAL CONDITIONS FOR SETTLER COLONIZATION STRUCTURE POLICY DESIGN. socio-political processes generate diverse white elite interests
+HOW ARE PROJECTS / PROBLEMS OF SETTLER COLONIAL GOVERNANCE RESOLVED? WHAT ORGS AND INSTITUTIONS ARE BUILT? 
 
-SETTLER COLONIALISM AS STRUCTURE - PROCESS. BUT SPATIALLY VARIABLE DEPENDING ON LOCAL INTERESTS
+Settler colonial regimes seek to resolve different problems across places and within places over time. This paper proposes a quantitative framework for understanding how the geographic process of settler colonization results in different styles of governance across places. We show that a series of historical economic and demographic measures (proxies for variation in modes of settler colonial extraction and exploitation) are closely related to trajectories of state formation across places, measured as employment levels in core social policy system sectors. 
 
-1. Frontier settler polity -> elite interest in disposession / assimiatilion -> aggressive paternalistic welfare state for AIAN, social democracy for settlers
-2. Jim Crow -> elite interest in exploitation and exclusion -> elite paternalism, malign neglect, hard coercion
-3. Metropole settler polity -> elite interests in labor discipline / immig assimilation -> progressive paternalism, strong coercive welfare state for W, hard coercion and contested welfare for Blk
+At a sub-national level, settler colonial regimes seek to address a range of problems inherent to their nation-building project: the dispossession of indigenous lands, the erasure of indigenous peoples, the exploitation of racially marginalized laborers, and the reproduction and expansion of the settler polity. We show that the historical geography of these problems is closely related to the policy infrastructure that governments develop. The consequences of this variation in trajectories are likely broad and varied.
 
-THESE ARE MULTIVARIATE INDICATORS, CAN USE CLUSTERING TO CHECK IT AND MEASURE IT. 
-
-1: MEASURE VARIATION IN CONTEXT, ASSUME CONTEXT PRODUCES INTERESTS. 2: MEASURE VARIATION IN POLICY DEVELOPMENT. 
-
-3 dimensions: frontier, antiBlack, white immig assim (urban)
-
-frontier: {homestead claims, tribal density, https://www.census.gov/dataviz/visualizations/001/}
-railrooad (corporate) + homestaed (individual) + morrill (state) - nice three piece approach, more complex and complete story. 
-
-
-antiblack: {jim crow polit econ (sharecropping), prop black}
-
-urban assim: {urbanization, industrial employment?, urban white immig, log black pop}
+Historians tell us these projects were active locally. 1. Frontier; 2. Jim Crow; 3. Metropole. Can we use demographic, legal, and employment data to map it out / model it?
 
 Following Wolfe, DuBois, etc, variation in the interests of elites across places (material + cultural) drives variation in processes of racialization across places. The state is a key vector through which racialization is implemented. Early 20th c. saw rapid development and expansion of social state. Can we observe differences in social state developmental trajectories as a function of variation in elite interests in particular racial projects? Are regional differences in social policy regimes a function of the social, demographic, and economic interests of regional elites? 
 
 Stratification in frontier was settler social democracy; flat social relations among settlers, extreme hostility to Native. Stratification in Jim Crow was rigid racial + class hierarchy; extreme wealth concentration and rigid racialized exploitation + social exclusion. Stratification in metropole was more fluid racial + class hierarchy; extreme concentration but porous boundaries, fewer bright lines.
 
-Interests of social policy actors defined within these fields. Bourdieusian historical stuff?
-
 Basic theory though is that interests of elites are racialized as a function of local social relations, and inform social policy development. This can lock in particular racial regimes over time as social policy does work on social groups.
 
-interests can be observed indirectly sometimes, right? homesteading is direct evidence of interest. tenant farming (or land ownership) is direct evidence of interest. industrial urban is tougher, but maybe there we just go indirect and use urbanization + racial demography.
+<!-- 1. Frontier settler polity -> elite interest in disposession / assimiatilion -> aggressive paternalistic welfare state for AIAN, social democracy for settlers -->
+<!-- 2. Jim Crow -> elite interest in exploitation and exclusion -> elite paternalism, malign neglect, hard coercion -->
+<!-- 3. Metropole settler polity -> elite interests in labor discipline / immig assimilation -> progressive paternalism, strong coercive welfare state for W, hard coercion and contested welfare for Blk -->
 
-I THINK THIS WORKS. CLUSTER ON INTERESTS + DEMOGRAPHY. OUTCOMES ARE POLICY MEASURES: POLICY OUTCOMES (EG EMPLOYMENT, SPENDING, GROUP QUARTERS POPS, ENROLLMENTS). 
+IMPLICATIONS - a) settler colonization as structure / structuring: context is key, and when SC is active, likely can be predictive; b) durable consequences for policy institutions (legacies, etc); c) comparative state formation / comparative welfare / carceral states. 
 
-TRY TO DO ONLY A FEW BIG NATIONAL PARAMETRIC TESTS. LOTS OF DESCRIPTIVE SUBSET WORK
+# What is already known about settler colonization and state formation in late 19th and Early 20th c. 
 
-TEST 1: clustering, spatial clustering
+## Frontier
 
-then TONS of descriptives to paint pictures of regional social / political contexts
+review here
 
-TEST 2: regression on outcomes
+## Jim Crow
 
-negative case re: black underdevelopment h1: no social workers in places with large black pops at period of emergence in t1
+review here
 
-positive case: white immigrants -> more social workers in t1
+## Metropole 
+
+review here
 
 ```{r read}
 # ### on libra, read raw
@@ -223,39 +219,105 @@ hs<-hs %>%
 #### join cumulative acres / claims onto dat for the valid census years, then carried forward
 
 dat<-dat %>%
-  left_join(hs)
+  left_join(hs) %>% 
+  filter(year>=1880, year<=1920)
 
 # # on local read temp
 # dat<-read_csv("./data/temp_data.csv")
 # hs<-read_csv("./data/temp_hs.csv")
+
+### land grab u data
+# lgu_cessions<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Cessions.csv")
+### this is cessions from the Royce maps, overlaps with morrill, but includes prior cessions as well
+### would need to use shapefiles to portion out by state
+lgu_parcels<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Parcels.csv")
+lgu_unis<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Universities.csv")
 ```
 
 # methods
+
+We are generally interested in evaluating whether a set of policy outcomes {employment, infrastructure} are related to a set of demographic and economic predictors {population composition, economic activity, ownership regime}. 
+
+To do so, we rely on historical data from the US Census accessed via IPUMS (Ruggles et al), from the Bureau of Land Management (Archived by the University of Nebraska), from the US Department of the Interior (CITE BS REPORT), and from records our team digitized from the Commissioner on Indian Affairs (CITE). 
+
+Less interested in causal identification, more interested in understanding spatial patterns and trajectories. We already know there was spatial variation in settler colonial contexts and policy systems, trying to see if we can capture it systematically with national quant data. Move from specific to general. 
+
+demonstrate var(infrastructure), show e[infrastructure] = f(settler interests)
+
+negative case re: black underdevelopment h1: no social workers in places with large black pops at period of emergence in t1
+
+positive case: white immigrants -> more social workers in t1
 
 here we are looking at how contexts in post-civil war -> progressive era US related to the emergence of the social state in the us. 
 
 ## NOTES ON GEOGRAPHIES and MEASUREMENT
 
-### STATES, TERRITORIES, AND NATIVE LANDS
-
 TALK ABOUT STATES, TERRITORIES, WESTERN EXPANSION. CONTESTATION AND TRANSFORMATION ARE KEY PROCESSES OF COLONIZATION. SETTLER COLONIALISM IS A SPATIAL STRUCTURE, NOT A SETTLED FACT, ESP VISIBLE IN THIS PERIOD. 
 
 STATES ARE WEIRD UNITS, BUT MAP CLEANLY ONTO ADMIN / LEGAL UNITS. TRIBAL NATIONS BOUNDARIES ARE ALSO V USEFUL, AS ARE SUB-STATE ANALYSES (EG CITIES COUNTIES ETC). 
 
-### DIRECT AND PROXY MEASURES FOR ELITE SETTLER INTERESTS
+geography itself endogenous to settler colonization, this is tricky!
+
+## sources of data
+
+Census; ARCIA; Interior; etc
+
+CONSIDER GOING 1880 - 1920 to capture period more effectively? no social workers will be in there tho...
+
+we treat police, education, and social work employment as core areas of the domestic social state. what is the name for that? the welfare state? the carceral state? the therapeutic state? that thing. 
+
+let's look at how it played out in the progressive era across states and regions. we are cutting the data at 1900 - 1930, wanting to capture the boom in progressive reforms that started in the late 1890s and continued until the great depression.
+
+First, the full country. How many people were employed in these social regulation / reproduction functions over time per capita?
+
+We use IPUMS 100% census data for 1900 - 1930 to count employment levels nationally and across states. A census taker is counted as a police employee if their code for the IPUMS variable OCC1950 is equal to one of {771 Marshals and constables, 773 Policemen and detectives, 782 Sheriffs and bailiffs}; coded social worker if OCC1950 is coded 079 Social and welfare worker; and coded teacher if OCC1950 is equal to 093 Teachers (n.e.c.). We convert these into employment rates per 1,000 population using the full population at the state (and nation) level. 
+
+## statistical methods and models
+
+EDA; multilevel models on outcome rates (state intercepts, state x year slopes, log outcomes for nonlinear process, etc) estimated with hmc, weak priors
+
+# Findings
 
 We suggest that regionally-specific political contexts, driven by spatially and temporally varying interests of white settler elites, caused variation in trajectories of welfare state formation across US states. In this study, we explore how three settler colonial political projects mattered for the emergence of the US welfare state: the economic exploitation and social exclusion of Black people from the settler polity, the consolidation of settler political, social, and cultural claims on Indigenous territories, and the incorporation of urban European immigrants into the settler polity. 
 
 The works of settler colonial and racial politics historical and theoretical scholars suggest a straightforward approach to selecting measures that are either a) direct, or b) proxy measures for elite white settler interests given a few assumptions about relationships between population distributions and political processes.
 
-### Measuring anti-Blackness and post-Reconstruction racial politics
+## Geographic contexts for settler colonial policymaking across US states 1880 - 1920
 
-IMPORTANCE OF URBAN? ADD EXTRA PLOT HERE? BLK / URBAN?
+### Jim Crow and the salience of anti-Blackness for local social and carceral policymaking
 
-1) jim crow salience (can we define as brutal coupling of formal / informal? less state capacity built for maintenance / strategic underinvestment)
-2) exclusion / formal soc control salience in urban non-S
+Figure \@ref(fig:blk-map) shows the distribution of the recorded Black population across US states in 1920. Panel 1 displays this data as the relative population composition of Black residents relative to to all residents, and panel 2 displays the absolute size of the Black population across US states. 
 
-POPULATION ALONE DESCRIPTIVES
+DISCUSS THE DISTRIBUTION
+
+```{r blk-map, fig.cap = "Black population, US States 1920 (note log scale)"}
+p1<-dat %>% 
+  filter(year == 1920) %>% 
+  mutate(state = tolower(statename)) %>% 
+  ggplot(aes(fill = blk / tot_pop * 100)) + 
+  geom_map(aes(map_id = state), map = map) + 
+  expand_limits(x = map$long, y = map$lat) + 
+  scale_fill_continuous(type = "viridis") + 
+  theme_void() + 
+  theme(legend.position = "bottom") + 
+  labs(fill = "Percent of total",
+       subtitle = "Panel 1. Population composition")
+
+p2<-dat %>% 
+  filter(year == 1920) %>% 
+  mutate(state = tolower(statename)) %>% 
+  ggplot(aes(fill = blk + 100)) + 
+  geom_map(aes(map_id = state), map = map) + 
+  expand_limits(x = map$long, y = map$lat) + 
+  scale_fill_continuous(type = "viridis", trans = "log10") + 
+  theme_void() + 
+  theme(legend.position = "bottom") + 
+  labs(fill = "Population\n(note logarithmic scale)",
+       subtitle = "Panel 2. Total population") 
+
+grid.arrange(p1, p2, nrow = 1)
+```
+
 
 ```{r blk-ts, fig.cap = "Black population by state 1870-1940"}
 p1<-ggplot(dat,
@@ -314,19 +376,6 @@ Note though, that these increases in population size do not always mirror trends
 
 This divergence between absolute and relative population trends illustrates that Black population share likely fails to adequately capture the salience of race for local political contexts. 
 
-
-```{r}
-dat %>% 
-  filter(year == 1930) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = log(blk))) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis") + 
-  theme_void() + 
-  theme(legend.position = "bottom")
-```
-
 next let's look at sharecropping
 
 ```{r}
@@ -358,71 +407,54 @@ ggplot(dat %>%
        subtitle = "States with more than 10,000 Black persons living on farms, 1920")
 ```
 
+
+```{r}
+dat %>% 
+  filter(year == 1920) %>% 
+  mutate(state = tolower(statename)) %>% 
+  ggplot(aes(fill = blk_sharecrop + 10)) + 
+  geom_map(aes(map_id = state), map = map) + 
+  expand_limits(x = map$long, y = map$lat) + 
+  scale_fill_continuous(type = "viridis",
+                        trans = "log10") + 
+  theme_void() + 
+  labs(fill = "Number of Black residents\non tenant farms\n(note logarithmic scale)")
+```
+
 Places with large Black pops in 1920 also had very high sharecropping rates. Not a perfect correlation, VA and FL are negative off-trend, and lots of variance for low Black pop states, probably just measurement error though. Likely makese sense to use sharecropping as log count rather than as proportion. 
 
-### Measuring the size, power, and interests of the expropriative settler polity 
+### Settlers and indigenous disposession
 
 2) HOMESTEAD CLAIMS - VERY CLEAR
 
   Explain
-  
-3) PRESENCE OF NATIVE LAND HOLDINGS - VERY CLEAR
-
-  Explain
-  
-We use data on Homestead Act claims as an indicator of the volume of settlers at the time and place-level seeking to actively dispossess Native Nations of their lands. Data on homestead claims provide useful indicators of both the demographic size of the settler polity (measured as counts of claimants) and the magnitude of their resources (measured as acres claimed). COUPLED WITH WHAT ELSE? 
-
-Figure \@ref(fig:ts-homestead-claims) shows the distribution of Homestead Act claims made by settlers between 1868 and 1961. No homestead claims were completed in the states in the Northeast region. In general, states in the North Central (Midwest) and Western regions had higher volumes of claims, though Oklahoma and Arkansas in the South also saw relatively large numbers of claims. By the end of the Homestead era, Montana had seen the largest number of claimants (151,500), followed by North Dakota (135,448), South Dakota (114,172), Colorado (107,618), and Nebraska (104,260). 
-
-```{r ts-homestead-claims, fig.cap = "Cumulative Homestead act claims by state and year"}
-ggplot(hs %>% 
-         filter(year < 1940),
-       aes(x = year,
-           y = hs_claims,
-           group = state)) + 
-  geom_line(alpha = 0.5) + 
-  geom_text(data = hs %>% 
-              filter(year == 1935),
-            aes(x = year,
-                y = hs_claims,
-                label = state),
-            position = position_nudge(x = 8),
-            alpha = 0.7) + 
-facet_wrap(~region)  + 
-  labs(y = "Number of claims",
-       x = "Year",
-       subtitle = "") + 
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-```
-
-THIS IS COOL! Look at homestead (as settler polity) plus mode (as boarding school on / off)
-
-LOOK AT ACRES PER CLAIM? GET AT BOTH POP SIZE AND RELATIVE RESOURCES?
 
 ```{r}
-ggplot(hs %>% 
-         filter(year == 1961) %>% 
-         mutate(region = factor(region, 
-                                levels = c("West", 
-                                           "North Central",
-                                           "South",
-                                           "Northeast"))),
-       aes(x = hs_acres / 1e6,
-           y = fct_reorder(state, hs_acres))) + 
-  geom_point() + 
-  labs(x = "Acres claimed (millions)",
-       y = "",
-       color = "Census Region") + 
-  facet_wrap(~region, 
-             scales = "free_y")
+p1<-dat %>% 
+  filter(year == 1920) %>% 
+  mutate(state = tolower(statename)) %>% 
+  ggplot(aes(fill = hs_acres / 1e6)) + 
+  geom_map(aes(map_id = state), map = map) + 
+  expand_limits(x = map$long, y = map$lat) + 
+  scale_fill_continuous(type = "viridis") + 
+  theme_void() + 
+  labs(fill = "Cumulative acres claimed\n(millions), 1920") + 
+  theme(legend.position = "bottom")
+
+p2<-dat %>% 
+  filter(year == 1920) %>% 
+  mutate(hs_pop = hs_claims / tot_pop) %>% 
+  mutate(state = tolower(statename)) %>% 
+  ggplot(aes(fill = hs_pop)) + 
+  geom_map(aes(map_id = state), map = map) + 
+  expand_limits(x = map$long, y = map$lat) + 
+  scale_fill_continuous(type = "viridis") + 
+  theme_void() +
+  labs(fill = "Claims per resident\n1920")  +
+  theme(legend.position = "bottom")
+
+grid.arrange(p1, p2, nrow = 1)
 ```
-
-pop / claims ratio is a little funky, but probably useful. can peg to 1940 census. 
-
-WOWZERS. 
-20+pct of pop likely had HS claim land in 3 states. 
-
-Wow, let's pull through this. ONE INDICATOR OF SETTLER POLITY. DEmographic base is one dimension - cultures / institutions/ resources also key. but useful!
 
 ```{r}
 dat %>% 
@@ -442,57 +474,55 @@ dat %>%
   facet_wrap(~region, 
              scales = "free_y")
 ```
+  
+We use data on Homestead Act claims as an indicator of the volume of settlers at the time and place-level seeking to actively dispossess Native Nations of their lands. Data on homestead claims provide useful indicators of both the demographic size of the settler polity (measured as counts of claimants) and the magnitude of their resources (measured as acres claimed). COUPLED WITH WHAT ELSE? 
 
-```{r}
+Figure \@ref(fig:ts-homestead-claims) shows the distribution of Homestead Act claims made by settlers between 1868 and 1961. No homestead claims were completed in the states in the Northeast region. In general, states in the North Central (Midwest) and Western regions had higher volumes of claims, though Oklahoma and Arkansas in the South also saw relatively large numbers of claims. By the end of the Homestead era, Montana had seen the largest number of claimants (151,500), followed by North Dakota (135,448), South Dakota (114,172), Colorado (107,618), and Nebraska (104,260). 
+
+```{r ts-homestead-claims, fig.cap = "Cumulative Homestead act claims by state and year"}
+ggplot(hs %>% 
+         filter(year < 1940),
+       aes(x = year,
+           y = hs_claims,
+           group = state)) + 
+  geom_line(alpha = 0.5) + 
+  geom_text(data = hs %>% 
+              filter(year == 1935),
+            aes(x = year,
+                y = hs_claims,
+                label = state),
+            position = position_nudge(x = 8),
+            alpha = 0.7,
+            size = 2.5) + 
+facet_wrap(~region)  + 
+  labs(y = "Number of claims",
+       x = "Year",
+       subtitle = "") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+```
+
+NATIVE LANDHOLDINGS OVER TIME ARE DIRECTLY RELATED TO HOMESTEAD CLAIMS, MECHANISM OF DISPOSESSION. 
+
+PULL AGENTS DATA FOR LANDHOLDINGS? 
+
+### Urbanization and European immigration
+
+```{r immig-map, fig.cap = "White immigrant population in cities 1920"}
 dat %>% 
   filter(year == 1920) %>% 
-  mutate(hs_pop = hs_claims / tot_pop) %>% 
   mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = hs_pop)) + 
+  ggplot(aes(fill = urban_immig_pop)) + 
   geom_map(aes(map_id = state), map = map) + 
   expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis") + 
+  scale_fill_continuous(type = "viridis",
+                        trans = "log10") + 
   theme_void() + 
-  theme(legend.position = "bottom")
-```
-  
-### Measuring the magnitude of social problems Progressive reformers would seek to 'fix'
-
-PULL IMMIG + URBAN - UNIQUE COMBO THAT PUSHES FORWARD WELFARE STATE
-
-```{r immig-ts, fig.cap = "White immigrant population by state 1870-1940"}
-p1<-ggplot(dat,
-       aes(x = year, y = white_immig / tot_pop,
-           group = state)) + 
-  geom_line(alpha = 0.5) + 
-  labs(subtitle = "Proportion white immigrant",
-       y = "Proportion",
-       x = "Year") + 
-  facet_wrap(~region)
-
-p2<-ggplot(dat%>% 
-  filter(!(is.na(region))),
-       aes(x = year, y = white_immig,
-           group = state)) + 
-  geom_line(alpha = 0.5) + 
-  scale_y_log10() + 
-  labs(subtitle = "White immigrant population",
-       y = "Count (note log10 axis)",
-       x = "Year") + 
-  facet_wrap(~region)
-
-grid.arrange(p2, p1, nrow = 1)
+  labs(fill = "Population\n(note logarithmic scale)")
 ```
 
-Relative population share as first generation immigrant declines in NC across period uniformly. In NE, increase until 1920 for most states, then monotonic decline. Low levels in S. Declining levels in W.
 
-Absolute white immigrant pop numbers increasing in NE, Increasing, then plateau in NC, increasing then plateau in W, and stable and low in S. 
-
-### urban
-
-```{r urban-ts, fig.cap = "Urban white immigrant population by state 1870-1940"}
+```{r urban-ts, fig.cap = "Urban white immigrant population by state 1880-1920"}
 p1<-ggplot(dat%>% 
-             filter(year<=1930) %>% 
              filter(!(is.na(region))),
            aes(x = year, y = urban_immig_pop / tot_pop,
                group = state)) + 
@@ -503,7 +533,6 @@ p1<-ggplot(dat%>%
   facet_wrap(~region)
 
 p2<-ggplot(dat%>% 
-             filter(year<=1930) %>% 
              filter(!(is.na(region))),
            aes(x = year, y = urban_immig_pop,
                group = state)) + 
@@ -520,32 +549,13 @@ increase in proportion of households in urban across regions
 
 Also clear increase in absolute n of households in urban settings. 
 
+MAYBE ALSO NOTE WHITE IMMIG POP IN FRONTIER STATES, DIFFERENT REGIMES FOR INCORPORATION, DIFFERENT RACIALIZATION PROCESSES FOR NORTH / W EURO IMMIGS VS SOUTH / EAST / IRISH?
 
-```{r}
-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = log(white_immig))) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis") + 
-  theme_void() + 
-  theme(legend.position = "bottom")
-```
+## Geographic variation in social and carceral state capacities 1880 - 1920
 
-# distributions of policy outcomes
+what are states doing? how does it vary across places and over time? 
 
-### the distribution of social state capacity building 
-
-CONSIDER GOING 1880 - 1920 to capture period more effectively? no social workers will be in there tho...
-
-we treat police, education, and social work employment as core areas of the domestic social state. what is the name for that? the welfare state? the carceral state? the therapeutic state? that thing. 
-
-let's look at how it played out in the progressive era across states and regions. we are cutting the data at 1900 - 1930, wanting to capture the boom in progressive reforms that started in the late 1890s and continued until the great depression.
-
-First, the full country. How many people were employed in these social regulation / reproduction functions over time per capita?
-
-We use IPUMS 100% census data for 1900 - 1930 to count employment levels nationally and across states. A census taker is counted as a police employee if their code for the IPUMS variable OCC1950 is equal to one of {771 Marshals and constables, 773 Policemen and detectives, 782 Sheriffs and bailiffs}; coded social worker if OCC1950 is coded 079 Social and welfare worker; and coded teacher if OCC1950 is equal to 093 Teachers (n.e.c.). We convert these into employment rates per 1,000 population using the full population at the state (and nation) level. 
+### Employment in core roles for the emergent welfare and carceral states
 
 ```{r emp-ts-plot, fig.cap="Employment rates per 1000 population 1900 - 1930 (US States, PUMS data)"}
 dat %>% 
@@ -690,12 +700,11 @@ Figure 4 shows these distributions as state choropleth maps for 1930 employment 
 
 Employment provides a measure of the magnitude of state and private investment in social control and social services (aside from transfers - think about distinction b/w hands on and redistribution). But this is one dimension of infrastructure. Given the ambiguity in 'social state capacity', we are working multiple measures to think this through. 
 
-#### kids in institutional group quarters
+### capacity for therapeutic coercion: kids in institutional group quarters
 
 Next, let's turn to reach of social state policy systems. One way to get at that is through the existence and utilization of era-specific policy institutions. Here, we will look at the distribution of children recorded as being housed in 'institutional group quarters' on the 1900 - 1930 decennial censuses. To improve the quality of measurement, I use the 100% decennial data for 1900, 1920, 1930 and 1940. The 1910 census data available through IPUMS only includes detailed group quarters information on the 1% and 1.4% samples and after exploratory work, they do not appear to be continuous with the 100% data. I exclude 1910 data for now. 
 
 Group quarters indicate non-traditional housing situations (e.g. not in a house or apartment). Here, we subset this group to include only children recorded as residents of 'correctional institutions', 'mental institutions', or 'institutions for the elderly, handicapped, and poor'. This excludes children recorded as living in rooming houses, military housing, other non-institutional settings. Our goal here is to capture the magnitude of efforts by both public and private actors to coercively or therapeutically detain children for purposes of social control or social welfare.   
-
 
 ```{r gq-ts, fig.cap = "Children in institutional group quarters 1900 - 1930"}
 dat %>% 
@@ -740,128 +749,149 @@ dat %>%
   ggplot(aes(x = type, y = pop, 
              color = region)) + 
   geom_boxplot()
-
-
 ```
-
-
-
 
 ## PRELIMINARY MODELS
 
-employment trajectories look kinda log-linear. almost certainly non-linear, so need a curve on trajectories regardless. log probably solves it well enough. 
+IMPORTANCE OF URBAN? ADD EXTRA PLOT HERE? BLK / URBAN?
 
-q1: salience of settler expropriotion -> state formation
-
-four models, each employment outcome + children in poverty institutions
-
-start with lm for log(rates)
-
-trouble fitting models for sparse data (e.g. social workers, children in gq), but works fine and in expected directions for teachers, police. 
-
-switch to brms for estimation on tricky ones
-
-```{r}
-### FIT PROBLEM WAS WITH EARLY YEARS NEAR ZERO AND LOW VARIANCE
-model_dat <- dat %>% 
-  filter(year>=1880) %>% 
-  mutate(police_rate = (police + 1) / tot_pop * 1e5,
-         socwork_rate = (socwork + 1) / tot_pop * 1e5,
-         teacher_rate = (teachers + 1) / tot_pop * 1e5,
-         child_inst_rate = (child_inst_poor_disabled + 0.1) / 
-           children * 1e5,
-         prop_blk = (blk + 1) / tot_pop,
-         hsclaim_prop = hs_claims / tot_pop,
-         year = scale(year))
-
-sc_police<-lmer(log(police_rate) ~ 
-              scale(hsclaim_prop) +
-              year + 
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
-
-sc_teacher<-lmer(log(teacher_rate) ~ 
-              scale(hsclaim_prop) +
-              year + 
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
-
-sc_socwork<-brm(log(socwork_rate) ~ 
-              scale(hsclaim_prop) +
-              year + 
-              (1 + year|state),
-            data = model_dat)
-
-sc_gq<-brm(log(child_inst_rate) ~ 
-              scale(hsclaim_prop) +
-              year + 
-              (1 + year|state),
-            data = model_dat)
-
-jc_police<-lmer(log(police_rate) ~ 
-              scale(prop_blk) +
-              year + 
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
-
-jc_teacher<-lmer(log(teacher_rate) ~ 
-              scale(prop_blk) +
-              year + 
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
-
-jc_socwork<-lmer(log(socwork_rate) ~ 
-              scale(prop_blk) +
-              year + 
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
-
-jc_gq<-lmer(log(child_inst_rate) ~ 
-              scale(prop_blk) +
-              year + 
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
-```
-
-This all looks fine. How do I want to visualize this? 
-
-we'll eventually do trajectory visuals for each regime type - what is the expected trajectory under different regimes, where do we end up in 1930? Think about how to handle to intercepts / slopes. What would a zero mean? pulling out everything not directly in national trend and regime measures. is that what I'm after? I guess I really do just want the regime-specific trend lines, in which case E[rate | regime] should zero out the individual idioscyncracies. it's oversimplified, but that should be ok. Just be super clear on what the iterpretation is on prediction. it's not a hypothetical state, its the mean expectation for the slope of the regime var.   
-
-model is 
-
-\[\hat{Y} = \alpha + \beta \textrm{Regime} + \delta year + \epsilon\]
-
-Here we are very much interested just in $\beta$, the rest are nuissance parameters. that works. can vis e[state type] under diffferent REGIME sets. 
-
-Q: are there places with competing regime sets? CA, WA, others? where we need a multivariate regime model? 
-
-```{r}
-new_dat<-data.frame(year =  c(1.3, 1.3, 1.3),
-                    hsclaim_prop = c(0, 0.05, 0.15))
-t<-predict(sc_police, 
-           newdata = new_dat,
-           re.form = ~0,
-           type = "link")
-
-t1<-predict(sc_teacher, 
-           newdata = new_dat,
-           re.form = ~0,
-           type = "link")
-
-exp(t1)
+1) jim crow salience (can we define as brutal coupling of formal / informal? less state capacity built for maintenance / strategic underinvestment)
+2) exclusion / formal soc control salience in urban non-S
 
 
-```
+<!-- employment trajectories look kinda log-linear. almost certainly non-linear, so need a curve on trajectories regardless. log probably solves it well enough.  -->
+
+<!-- q1: salience of settler expropriotion -> state formation -->
+
+<!-- four models, each employment outcome + children in poverty institutions -->
+
+<!-- start with lm for log(rates) -->
+
+<!-- trouble fitting models for sparse data (e.g. social workers, children in gq), but works fine and in expected directions for teachers, police.  -->
+
+<!-- switch to brms for estimation on tricky ones -->
+
+<!-- ```{r} -->
+<!-- ### FIT PROBLEM WAS WITH EARLY YEARS NEAR ZERO AND LOW VARIANCE -->
+<!-- model_dat <- dat %>%  -->
+<!--   filter(year>=1880) %>%  -->
+<!--   mutate(police_rate = (police + 1) / tot_pop * 1e5, -->
+<!--          socwork_rate = (socwork + 1) / tot_pop * 1e5, -->
+<!--          teacher_rate = (teachers + 1) / tot_pop * 1e5, -->
+<!--          child_inst_rate = (child_inst_poor_disabled + 0.1) /  -->
+<!--            children * 1e5, -->
+<!--          prop_blk = (blk + 1) / tot_pop, -->
+<!--          prop_urban_immig = urban_immig_pop / tot_pop, -->
+<!--          hsclaim_prop = hs_claims / tot_pop, -->
+<!--          year = scale(year)) -->
+
+<!-- m_police<-brm(log(police_rate) ~  -->
+<!--                  scale(hsclaim_prop) + -->
+<!--                  scale(prop_urban_immig) + -->
+<!--                  scale(prop_blk) +  -->
+<!--                  scale(log(blk_sharecrop + 1)) +  -->
+<!--                  year +  -->
+<!--                  (1 + year|state), -->
+<!--                data = model_dat) -->
+
+<!-- m_teacher<-brm(log(teacher_rate) ~  -->
+<!--                  scale(hsclaim_prop) + -->
+<!--                  scale(prop_urban_immig) + -->
+<!--                  scale(prop_blk) +  -->
+<!--                  scale(log(blk_sharecrop + 1)) +  -->
+<!--                  year +  -->
+<!--                  (1 + year|state), -->
+<!--                data = model_dat) -->
+
+<!-- m_socwork<-brm(log(socwork_rate) ~  -->
+<!--                  scale(hsclaim_prop) + -->
+<!--                  scale(prop_urban_immig) + -->
+<!--                  scale(prop_blk) +  -->
+<!--                  scale(log(blk_sharecrop + 1)) +  -->
+<!--                  year +  -->
+<!--                  (1 + year|state), -->
+<!--                data = model_dat) -->
+
+<!-- sc_teacher<-lmer(log(teacher_rate) ~  -->
+<!--               scale(hsclaim_prop) + -->
+<!--               year +  -->
+<!--               (1 + year|state), -->
+<!--             data = model_dat, -->
+<!--             control=lmerControl(optimizer="nloptwrap", -->
+<!--                                 optCtrl=list(maxfun=2e5))) -->
+
+<!-- sc_socwork<-brm(log(socwork_rate) ~  -->
+<!--               scale(hsclaim_prop) + -->
+<!--               year +  -->
+<!--               (1 + year|state), -->
+<!--             data = model_dat) -->
+
+<!-- sc_gq<-brm(log(child_inst_rate) ~  -->
+<!--               scale(hsclaim_prop) + -->
+<!--               year +  -->
+<!--               (1 + year|state), -->
+<!--             data = model_dat) -->
+
+<!-- jc_police<-lmer(log(police_rate) ~  -->
+<!--               scale(prop_blk) + -->
+<!--               year +  -->
+<!--               (1 + year|state), -->
+<!--             data = model_dat, -->
+<!--             control=lmerControl(optimizer="nloptwrap", -->
+<!--                                 optCtrl=list(maxfun=2e5))) -->
+
+<!-- jc_teacher<-lmer(log(teacher_rate) ~  -->
+<!--               scale(prop_blk) + -->
+<!--               year +  -->
+<!--               (1 + year|state), -->
+<!--             data = model_dat, -->
+<!--             control=lmerControl(optimizer="nloptwrap", -->
+<!--                                 optCtrl=list(maxfun=2e5))) -->
+
+<!-- jc_socwork<-lmer(log(socwork_rate) ~  -->
+<!--               scale(prop_blk) + -->
+<!--               year +  -->
+<!--               (1 + year|state), -->
+<!--             data = model_dat, -->
+<!--             control=lmerControl(optimizer="nloptwrap", -->
+<!--                                 optCtrl=list(maxfun=2e5))) -->
+
+<!-- jc_gq<-lmer(log(child_inst_rate) ~  -->
+<!--               scale(prop_blk) + -->
+<!--               year +  -->
+<!--               (1 + year|state), -->
+<!--             data = model_dat, -->
+<!--             control=lmerControl(optimizer="nloptwrap", -->
+<!--                                 optCtrl=list(maxfun=2e5))) -->
+<!-- ``` -->
+
+<!-- This all looks fine. How do I want to visualize this?  -->
+
+<!-- we'll eventually do trajectory visuals for each regime type - what is the expected trajectory under different regimes, where do we end up in 1930? Think about how to handle to intercepts / slopes. What would a zero mean? pulling out everything not directly in national trend and regime measures. is that what I'm after? I guess I really do just want the regime-specific trend lines, in which case E[rate | regime] should zero out the individual idioscyncracies. it's oversimplified, but that should be ok. Just be super clear on what the iterpretation is on prediction. it's not a hypothetical state, its the mean expectation for the slope of the regime var.    -->
+
+<!-- model is  -->
+
+<!-- \[\hat{Y} = \alpha + \beta \textrm{Regime} + \delta year + \epsilon\] -->
+
+<!-- Here we are very much interested just in $\beta$, the rest are nuissance parameters. that works. can vis e[state type] under diffferent REGIME sets.  -->
+
+<!-- Q: are there places with competing regime sets? CA, WA, others? where we need a multivariate regime model?  -->
+
+<!-- ```{r} -->
+<!-- new_dat<-data.frame(year =  c(1.3, 1.3, 1.3), -->
+<!--                     hsclaim_prop = c(0, 0.05, 0.15)) -->
+<!-- t<-predict(sc_police,  -->
+<!--            newdata = new_dat, -->
+<!--            re.form = ~0, -->
+<!--            type = "link") -->
+
+<!-- t1<-predict(sc_teacher,  -->
+<!--            newdata = new_dat, -->
+<!--            re.form = ~0, -->
+<!--            type = "link") -->
+
+<!-- exp(t1) -->
+
+
+<!-- ``` -->
 
