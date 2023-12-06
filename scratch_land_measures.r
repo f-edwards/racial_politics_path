@@ -132,21 +132,19 @@ st_1796<-c("ME", "NH", "VT", "NY", "MA",
            "MD", "VA", "NC", "SC", "GA",
            "WV", "KY", "TN")
 
+cessions_diff<-cessions_diff %>% 
+  mutate(st_1796 = STUSPS%in%st_1796)
+
 ggplot(cessions_diff,
        aes(fill = st_1796)) + 
   geom_sf() + 
   theme_void()
 
-cessions_diff<-cessions_diff %>% 
-  mutate(st_1796 = STUSPS%in%st_1796)
-
-
 ### unceded light blue, reservation dark blue
 ggplot(st) + 
   geom_sf() + 
-  geom_sf(data = cessions_diff %>% 
-            filter(st_1796==F), fill = "dodgerblue") +
-  # geom_sf(data = aianh, fill = "blue") + 
+  geom_sf(data = cessions_diff, fill = "dodgerblue") +
+  geom_sf(data = aianh, fill = "blue") + 
   theme_void()
 
 ### layer state boundaries
@@ -187,21 +185,54 @@ ggplot(ts_full,
             lty = 2) + 
   facet_wrap(~STUSPS)
 
+### top code cessions to total acres
+
+ts_full<-ts_full %>% 
+  filter(!is.na(year)) %>% 
+  mutate(prop_ceded = cumulative_ceded / total_acres_2021,
+         prop_ceded = ifelse(prop_ceded>1, 1, prop_ceded))
+
 ggplot(ts_full,
-       aes(x = year, y = cumulative_ceded / total_acres_2021)) + 
+       aes(x = year, y = prop_ceded)) + 
   geom_line() +
-  geom_hline(yintercept = 1, lty = 2) + 
   facet_wrap(~STUSPS)
 
-#### THIS CAPTURES DISPOSESSION GEOGRAPHY AND PROCESS. WHAT ABOUT RESERVATION LANDS?
+#### THIS CAPTURES DISPOSESSION GEOGRAPHY AND PROCESS. OUTPUT
 
+ts_full %>% 
+  select(year, STUSPS,
+         ceded_acres, cumulative_ceded,
+         total_acres_2021, prop_ceded) %>% 
+  rename(state = STUSPS) %>% 
+  write_csv("./data/disposession_ts.csv")
+
+##############################################################
 ### REDISTRIBUTION.
+##############################################################
 
 ### MORRILL ACT DATA
 morill<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Parcels.csv")
 ### create state by year patented acreage time series
+### prefer to use Cession year, (Yr_US_Acquire)
+### but for unceded, will use Yr_ST_Accept as alt
+### take the minimum of all year variables for first year recorded dispossessed
+morill <- morill %>% 
+  mutate(Yr_US_Acquire = as.numeric(Yr_US_Acquire),
+         Yr_ST_Accept = as.numeric(Yr_ST_Accept),
+         Yr_Uni_Assing = as.numeric(Yr_Uni_Assign),
+         Yr_Patent = as.numeric(Yr_Patent))
+### rowwise minima of year measures
 morill<-morill %>% 
-  group_by(Loc_State, Yr_Patent) %>% 
+  rowwise() %>% 
+  mutate(year = min(c(Yr_US_Acquire, Yr_ST_Accept, 
+                      Yr_Uni_Assign, Yr_Patent),
+                    na.rm = T)) %>% 
+  select(year)
+
+
+
+morill<-morill %>% 
+  group_by(Loc_State, Ys_ST_Accept) %>% 
   summarize(Acres = sum(Acres))
 
 full_ts<-expand_grid(Loc_State = unique(morill$Loc_State),
@@ -218,7 +249,6 @@ ggplot(morill %>%
            group = Loc_State)) + 
   geom_line() + 
   facet_wrap(~Loc_State)
-
 
 #### how do I think patenting impacts local politics - through active efforts to make ownership claims
 #### subsequent efforts to develop / exploit land
@@ -244,12 +274,12 @@ hs<-read_csv("./data/blm_homesteads_clean.csv") %>%
                         value))
 
 ### split Dakota Territory values to 0.5 ND, 0.5 SD to preserve time series
-hs_dakota<-hs %>%
+hs_dakota <- hs %>%
   filter(state == "Dakota Territory") %>%
   mutate(value = value / 2) %>%
   select(-state)
 
-hs<-hs %>%
+hs <- hs %>%
   bind_rows(hs_dakota %>%
               mutate(state = "North Dakota")) %>%
   bind_rows(hs_dakota %>%
@@ -258,14 +288,31 @@ hs<-hs %>%
   group_by(state, year, type) %>%
   summarize(value = sum(value))
 
-hs<-hs %>%
-  arrange(state, year) %>%
-  group_by(state, type) %>%
-  mutate(cum_value = cumsum(value)) %>%
-  ungroup()
-
 ## harmonize names
-state_xwalk<-data.frame(state = state.name,
+state_xwalk <- data.frame(state = state.name,
                         state.abb = state.abb)
 
-### add ID and pop vars back to h
+hs<-hs %>% 
+  left_join(state_xwalk) %>% 
+  rename(homestead_acres = value)%>% 
+  filter(type == "acres") %>% 
+  select(-type)
+
+## 
+morill<-morill %>% 
+  rename(state.abb = Loc_State) %>% 
+  left_join(state_xwalk) %>% 
+  rename(morill_acres = Acres,
+         year = Yr_Patent) 
+
+land_distrib<-morill %>% 
+  full_join(hs)
+
+### 
+land_distrib <- land_distrib %>%
+  filter(year <= 1920) %>% 
+  arrange(state, year) %>%
+  group_by(state) %>%
+  mutate(morill_acres_cum = cumsum(morill_acres),
+         homestead_acres_cum = cumsum(homestead_acres)) %>%
+  ungroup()
