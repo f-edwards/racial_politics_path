@@ -20,6 +20,11 @@ options(dplyr.print_max = 1e9)
 map<-map_data("state")
 
 theme_set(theme_minimal())
+
+# read data from make_* scripts
+pop<-read_csv("./data/temp_population_ts.csv")
+disp<-read_csv("./data/temp_disposession_ts.csv")
+dist<-read_csv("./data/temp_distribution_ts.csv")
 ```
 
 
