@@ -25,6 +25,10 @@ st<-states(cb = T) %>%
              "PR", "GU", "AS","VI",
              "MP"))
 
+
+st_acres<-data.frame(state = st$STUSPS,
+                     total_acres_2021 = as.numeric(set_units(st_area(st), "acre")))
+
 ##############################################################################
 # read and format land dispossession data /shapes ----------------------------
 ##############################################################################
@@ -94,7 +98,7 @@ ts_full %>%
          ceded_acres, cumulative_ceded,
          total_acres_2021, prop_ceded) %>% 
   rename(state = STUSPS) %>% 
-  write_csv("./data/disposession_ts.csv")
+  write_csv("./data/temp_disposession_ts.csv")
 
 ##############################################################
 ### REDISTRIBUTION.
@@ -122,7 +126,9 @@ morill<-morill %>%
   arrange(year, Loc_State)
 
 ### homestead act data
-### read in, pivot, and select acreage data by state / year
+### modified raw data by cleaning columns / headers for read_csv() otherwise unchanged
+### http://homestead.unl.edu/projects/homesteading-the-plains/data/blm_homesteads.xlsx
+
 hs<-read_csv("./data/blm_homesteads_clean.csv") %>%
   pivot_longer(claims1868:acres1961,
                names_to = "name",
@@ -192,4 +198,4 @@ land_distrib <- land_distrib %>%
 
 ### output
 land_distrib %>% 
-  write_csv("./data/distribution_ts.csv")
+  write_csv("./data/temp_distribution_ts.csv")
