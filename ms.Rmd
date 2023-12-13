@@ -3,10 +3,9 @@ title: "Settler colonial projects and variation in paths to building the welfare
 author: "Frank Edwards"
 date: "last updated `r Sys.Date()`"
 output: bookdown::html_document2
-abstract: "Place and time variation in problems of settler colonization are related to the kinds of governments that local settler elites build. "
+abstract: "Place and time variation in settler colonial projects are related to the kinds of states that settler elites build."
 ---
-
-```{r setup, include = F, message = F}
+```{r setup, include = F, message = F, cache = F}
 knitr::opts_chunk$set(message = F, echo = F, warning = F)
 library(tidyverse)
 library(lme4)
@@ -15,26 +14,55 @@ library(usmap)
 library(grid)
 library(gridExtra)
 library(brms)
+library(tidycensus)
+library(tigris)
+library(units)
+library(sf)
+
+options(tigris_use_cache = T)
 options(scipen = 999)
-options(dplyr.print_max = 1e9)
+options(dplyr.print_max = 30)
 map<-map_data("state")
-
 theme_set(theme_minimal())
-
-# read data from make_* scripts
-pop<-read_csv("./data/temp_population_ts.csv")
-disp<-read_csv("./data/temp_disposession_ts.csv")
-dist<-read_csv("./data/temp_distribution_ts.csv")
 ```
 
+```{r read, include = F, message = F, cache = T}
+
+### state shape file
+st<-states(cb = T) %>%
+  st_transform(8528) %>% 
+  filter(!STUSPS%in%
+           c("HI", "AK", 
+             "PR", "GU", "AS","VI",
+             "MP"))
+
+# read data from make_* scripts
+pop<-read_csv("./data/temp_population_ts.csv")%>%
+  filter(STUSPS!="AK")
+disp<-read_csv("./data/temp_disposession_ts.csv")%>%
+  filter(STUSPS!="AK")
+dist<-read_csv("./data/temp_distribution_ts.csv")%>%
+  filter(STUSPS!="AK")
+
+## add region to all
+disp<-disp %>%
+  left_join(pop %>%
+              select(STUSPS, region, division) %>%
+  distinct())
+
+dist<-dist %>%
+  left_join(pop %>%
+              select(STUSPS, region, division) %>%
+  distinct()) 
+
+source("models.R")
+```
 
 # Introduction
 
-<!-- HOW ARE PROJECTS / PROBLEMS OF SETTLER COLONIAL GOVERNANCE RESOLVED? WHAT ORGS AND INSTITUTIONS ARE BUILT?  -->
+This paper proposes a comparative quantitative framework for understanding how the geographic process of settler colonization results in different styles of governance across places (simultaneous settler projects). We show that spatial and temporal variation in modes of settler colonial extraction and exploitation are closely related to trajectories of state formation across places. 
 
-Settler colonial regimes seek to resolve different problems across places and within places over time. This paper proposes a quantitative framework for understanding how the geographic process of settler colonization results in different styles of governance across places (simultaneous settler projects). We show that a series of historical economic and demographic measures (proxies for variation in modes of settler colonial extraction and exploitation) are closely related to trajectories of state formation across places, measured as employment levels in core social policy system sectors. 
-
-At a sub-national level, settler colonial regimes seek to address a range of problems inherent to their nation-building project: the dispossession of indigenous lands, the erasure of indigenous peoples, the exploitation of racially marginalized laborers, and the reproduction and expansion of the settler polity. We show that the historical geography of these problems is closely related to the policy infrastructure that governments develop. The consequences of this variation in trajectories are likely broad and varied.
+At a sub-national level, settler colonial regimes seek to address a range of problems inherent to their nation-building project: the dispossession of indigenous lands, the erasure of indigenous peoples, the exploitation of racially marginalized laborers, and the reproduction and expansion of the settler polity. We show that the historical geography of these problems of settler colonial governance were closely related to the policy infrastructure to manage social life that governments develop. 
 
 <!-- Historians tell us these projects were active locally. 1. Frontier; 2. Jim Crow; 3. Metropole. Can we use demographic, legal, and employment data to map it out / model it? -->
 
@@ -64,170 +92,9 @@ Following Wolfe, DuBois, etc, variation in the interests of elites across places
 
 <!-- review here -->
 
-```{r read}
-# ### on libra, read raw
-# ### read employment data
-# ### full ts of occupations ADD CONSTABLES, THERES A DECENT NUMBER OF THEM
-dat_occ<-read_csv("./data/usa_00071.csv") %>%
-  rename_all(tolower) %>%
-  mutate(occ1950 =
-           case_when(
-             occ1950 == 79 ~ "socwork",
-             occ1950 == 773 ~ "police",
-             occ1950 == 771 ~ "police",
-             occ1950 == 782 ~ "police",
-             occ1950 == 93 ~ "teachers"
-           )) %>%
-  group_by(year, statefip, occ1950) %>%
-  summarize(emp = sum(perwt)) %>%
-  pivot_wider(names_from = occ1950, values_from = emp,
-              values_fill = 0)
-### AK OR HI HERE? check that at IPUMS
-
-# pop data (total, age, race, nativitiy, urban, farm, landown)
-dat_immig<-read_csv("./data/usa_00072.csv") %>%
-  rename_all(tolower) %>%
-  group_by(year, statefip) %>%
-  summarize(tot_pop = sum(perwt),
-            children = sum((age<18) * perwt),
-            white_immig =
-              sum((nativity == 5) * (race == 1) * (hispan == 0) * perwt),
-            blk =
-              sum((race == 2) * perwt),
-            blk_sharecrop = 
-              sum((race==2) * (farm==2) * (ownershp==2) * perwt),
-            blk_farms = sum((race==2) * (farm==2) * perwt),
-            urban_pop = sum(hhwt * (urban ==2)),
-            urban_immig_pop = 
-              sum((urban==2) * 
-                    (nativity == 5) * (race == 1) * (hispan == 0) * perwt),
-            tot_hh = sum(hhwt))
-### AK OR HI HERE? check that at IPUMS
-
-
-### group quarters data, 100%
-gq<-read_csv("./data/usa_00069.csv") %>%
-  rename_all(tolower) %>%
-  filter(age<18) %>%
-  group_by(year, statefip, gqtype) %>%
-  summarize(gq_pop = sum(perwt, na.rm = T)) %>%
-  mutate(gqtype = case_when(
-    gqtype == 2 ~ "child_inst_correctional",
-    gqtype == 3 ~ "child_inst_mental",
-    gqtype == 4 ~ "child_inst_poor_disabled")) %>%
-  filter(gqtype!="other") %>%
-  pivot_wider(names_from = gqtype, values_from = gq_pop,
-              values_fill = 0)
-### AK OR HI HERE? check that at IPUMS
-
-
-### join
-dat <- data.frame(state = state.abb,
-               region = state.region,
-               division = state.division) %>%
-  left_join(state.fips %>%
-              select(fips, abb) %>%
-              distinct() %>%
-              rename(state = abb, statefip = fips)) %>%
-  left_join(dat_immig) %>%
-  left_join(dat_occ) %>%
-  ungroup() %>%
-  left_join(gq)
-
-### homestead act data
-#### load in homestead data and boarding school data
-### state measure can be cumulative sum of homesteads, that gets at polity
-### homesteading data
-y_o_s <- read_csv("./data/year_of_statehood.csv") %>%
-  left_join(dat %>%
-              select(state, region) %>%
-              distinct())
-
-hs<-read_csv("./data/blm_homesteads_clean.csv") %>%
-  pivot_longer(claims1868:acres1961,
-               names_to = "name",
-               values_to = "value") %>%
-  mutate(year = str_sub(
-    name, start = -4, end = -1),
-    type = str_sub(
-      name, start = 1, end = -5)) %>%
-  select(-name) %>%
-  mutate(year = as.numeric(year)) %>%
-  mutate(value = ifelse(is.na(value),
-                        0,
-                        value))
-
-### split Dakota Territory values to 0.5 ND, 0.5 SD to preserve time series
-hs_dakota<-hs %>%
-  filter(state == "Dakota Territory") %>%
-  mutate(value = value / 2) %>%
-  select(-state)
-
-hs<-hs %>%
-  bind_rows(hs_dakota %>%
-              mutate(state = "North Dakota")) %>%
-  bind_rows(hs_dakota %>%
-              mutate( state = "South Dakota")) %>%
-  filter(state != "Dakota Territory") %>%
-  group_by(state, year, type) %>%
-  summarize(value = sum(value))
-
-hs<-hs %>%
-  arrange(state, year) %>%
-  group_by(state, type) %>%
-  mutate(cum_value = cumsum(value)) %>%
-  ungroup()
-
-## expand_grid to add zeroes
-### use y_o_s for index
-state<-unique(y_o_s$statename)
-year<-unique(hs$year)
-type<-unique(hs$type)
-temp<-expand_grid(state, year, type)
-
-hs<-temp %>%
-  left_join(hs) %>%
-  replace_na(list(value = 0,
-                  cum_value = 0))
-
-hs <- hs %>%
-  select(-value) %>%
-  pivot_wider(names_from = type,
-              values_from = cum_value,
-              names_prefix = "hs_")
-
-### add ID and pop vars back to hs
-
-y_o_s <- read_csv("./data/year_of_statehood.csv") %>%
-  left_join(dat %>%
-              select(state, region) %>%
-              distinct()) %>%
-  filter(!(is.na(region)))
-
-hs<-hs %>%
-  rename(statename = state) %>%
-  left_join(y_o_s)
-
-#### join cumulative acres / claims onto dat for the valid census years, then carried forward
-
-dat<-dat %>%
-  left_join(hs) %>% 
-  filter(year>=1880, year<=1920)
-
-# # on local read temp
-# dat<-read_csv("./data/temp_data.csv")
-# hs<-read_csv("./data/temp_hs.csv")
-
-### land grab u data
-# lgu_cessions<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Cessions.csv")
-### this is cessions from the Royce maps, overlaps with morrill, but includes prior cessions as well
-### would need to use shapefiles to portion out by state
-lgu_parcels<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parcels_Database/CSVs/Parcels.csv")
-```
-
 # Methods
 
-We are generally interested in evaluating whether a set of policy outcomes {employment, infrastructure} are related to a set of demographic and economic predictors {population composition, economic activity, ownership regime}. 
+*We evaluate whether a set of policy outcomes {employment, infrastructure} are related to a set of demographic and economic predictors {population composition, economic activity, ownership regime} at the state and year-levels.*
 
 To do so, we rely on historical data from the US Census accessed via IPUMS (Ruggles et al), from the Bureau of Land Management (Archived by the University of Nebraska), from the US Department of the Interior (CITE BS REPORT), and from records our team digitized from the Commissioner on Indian Affairs (CITE). 
 
@@ -263,11 +130,50 @@ Census (pop, employment, group quarters); ARCIA; Interior; BLM; US Forest Servic
 
 <!-- First, the full country. How many people were employed in these social regulation / reproduction functions over time per capita? -->
 
-We use IPUMS 100% census data for 1900 - 1930 to count employment levels nationally and across states. A census taker is counted as a police employee if their code for the IPUMS variable OCC1950 is equal to one of {771 Marshals and constables, 773 Policemen and detectives, 782 Sheriffs and bailiffs}; coded social worker if OCC1950 is coded 079 Social and welfare worker; and coded teacher if OCC1950 is equal to 093 Teachers (n.e.c.). We convert these into employment rates per 1,000 population using the full population at the state (and nation) level. 
+We use IPUMS 100% census data for 1900 - 1930 to count employment levels nationally and across states. A census respondent is counted as a police employee if their code for the IPUMS variable OCC1950 is equal to one of {771 Marshals and constables, 773 Policemen and detectives, 782 Sheriffs and bailiffs}; coded social worker if OCC1950 is coded 079 Social and welfare worker; and coded teacher if OCC1950 is equal to 093 Teachers (n.e.c.). We convert these into employment rates per 1,000 population using the full population at the state (and nation) level. 
+
+### measures
+
+All measures are computed at the state-year level. 
+
+EMPLOYMENT: 
+
+- teachers (1900 - 1930 100%)
+- cops (1900 - 1930 100%)
+- social workers (1900 - 1930 100%)
+
+POPULATION: 
+
+- total (1900 - 1930 1%)
+- children (1900 - 1930 1%)
+- white immigrants in *urban households* (1900 - 1930 1%)
+- Black population living in tenant farm households (1900 - 1930 1%)
+- Population in group quarters (correctional institutions) (1900 100%, 1910 1.4%, 1920 - 1930 100%)
+- Population in group quarters (mental institutions) (1900 100%, 1910 1.4%, 1920 - 1930 100%)
+- Population in group quarters (institutions for the elderly, handicapped, and poor) (1900 100%, 1910 1.4%, 1920 - 1930 100%)
+
+LAND: 
+
+- cumulative acres parceled through the Morill Act (Robert Lee, ``Morrill Act of 1862 Indigenous Land Parcels Database,'' High Country News, 2020)
+- cumulative acres parceled through the Homestead Act (``Homesteads,'' Bureau of Land Management of the U.S. Department of the Interior, 1962. digitized by Edwards, Friefeld and and Wingo 2017)
 
 ## statistical methods and models
 
-EDA; multilevel models on outcome rates (state intercepts, state x year slopes, log outcomes for nonlinear process, etc) estimated with hmc, weak priors
+Model is 
+
+\[ y_{st} \sim \textrm{NegBin}(\lambda, \alpha)\]
+
+\[ \lambda = \textrm{E}[y_{st}] \]
+
+\[ \log \left( \frac{\textrm{E}[y_{st}]}{\textrm{population}_{st}} \right) = \gamma_s + \delta_t + \beta_1 \frac{\textrm{Black tenant farmers}_{st}}{\textrm{population}_{st}} + \beta_2 \frac{\textrm{White urban immigrants}_{st}}{\textrm{population}_{st}} + \beta_3 \textrm{Morill and Homestead acres}_{st} \]
+
+\[\gamma_s \sim N(0, \sigma^2_\gamma)\]
+
+With weakly informative priors
+
+\[\beta \sim N(0, 20)\]
+\[\sigma \sim t(3, 0, 2.5)\]
+\[\alpha \sim \textrm{Gamma}(0.01, 0.01)\]
 
 # Findings
 
@@ -275,616 +181,220 @@ We suggest that regionally-specific political contexts, driven by spatially and 
 
 The works of settler colonial and racial politics historical and theoretical scholars suggest a straightforward approach to selecting measures that are either a) direct, or b) proxy measures for elite white settler interests given a few assumptions about relationships between population distributions and political processes.
 
-## Geographic contexts for settler colonial policymaking across US states 1880 - 1920
+```{r fig.cap = "demographic map of US in 1900 - Black, White immig, white non-immig"}
+plot_dat<-pop %>% 
+  filter(year == 1900) %>% 
+  mutate(white_non_immig = white_non_immig / (white_non_immig + white_immig),
+         white_immig = 1 - white_non_immig,
+         black = blk / tot_pop) %>% 
+  select(STUSPS, white_immig, white_non_immig, black) %>% 
+  pivot_longer(cols = white_immig:black) %>% 
+  mutate(name = case_when(
+    name == "black" ~ "Black / \ntotal population",
+    name == "white_immig" ~ "White immigrant/\ntotal white population",
+    name == "white_non_immig" ~ "White non-immigrant/\ntotal white population"
+  ))
 
-### Jim Crow and the salience of anti-Blackness for local social and carceral policymaking
-
-Figure \@ref(fig:blk-map) shows the distribution of the recorded Black population across US states in 1920. Panel 1 displays this data as the relative population composition of Black residents relative to to all residents, and panel 2 displays the absolute size of the Black population across US states. We display panel 2 on a logarithmic scale to enable closer examination of the first stage of the Great Migration. While Black populations were a low relative share of the population in places like New York, Pennsylvania and Illinois in 1920, there were substantial and growing Black populations in these states, as shown on the count, rather than proportion, scale. 
-
-```{r blk-map, fig.cap = "Black population, US States 1920 (note log scale)"}
-p1<-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = blk / tot_pop * 100)) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis") + 
-  theme_void() + 
-  theme(legend.position = "bottom") + 
-  labs(fill = "Percent of total",
-       subtitle = "Panel 1. Population composition")
-
-p2<-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = blk + 100)) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis", trans = "log10") + 
-  theme_void() + 
-  theme(legend.position = "bottom") + 
-  labs(fill = "Population\n(note logarithmic scale)",
-       subtitle = "Panel 2. Total population") 
-
-grid.arrange(p1, p2, nrow = 1)
-```
-
-
-Figure \@ref(fig:blk-ts) shows two sets of time series describing the Black population in US States between 1870 and 1930 using the US Census. Panel 1 shows the size of the Black population in counts, represented on a logarithmic scale to allow for easier comparisons of population order of magnitude. Panel 2 shows the proportion of a state's population reported as Black on the US Census, to allow for comparisons of population composition across places. 
-
-Black populations increased uniformly across all US states between 1870 and 1930 (see panel 1), though there are clear differences in rates of increase and absolute levels across states. For example, in the Northeast region, the primarily rural states of Maine, Vermont, and New Hampshire had relatively small Black populations across the time period. In Maine, reported Black populations were between 300 and 2400 during this period (1% sample data, NO standard errors REPORTED HERE because it's a pain but I'll keep working on it). By contrast, states with large and growing cities, like New York, New Jersey, and Pennsylvania all had large Black populations that grew substantially between 1870 and 1930. For example, Pennsylvania's Black population was recorded at about 70,000 in 1870, and 430,000 in 1930.
-
-Note that some places described in these plots were not admitted as states at the beginning of this time period (CHECK US CENSUS QUALITY IN TERRITORIES), and were intensely contested in military and non-military conflicts between the US government and tribal nations. MORE HERE. HOW DOES CONTESTATION ENTER INTO THE STAT PROCESS? CENSUS IS COUNTING SETTLERS + ENSLAVED, SO THATS STILL VALID FOR CONTEXTS OF SET COL ASSUMING GOOD TERRITORIAL MEASUREMENT (CHECK THIS!).
-
-Similar population trends are evident in the North Central region (commonly referred to as the Midwest). States with large cities, like Illinois, Ohio, Missouri, and Michigan had both relatively high Black populations at the beginning of the period and saw substantial growth in these populations over time. For example, the US Census recorded about 31,000 Black residents in Illinois in 1870. By 1930, the Census recorded about 330,000 Black residents of Illinois. Note that some of these places were not admitted as states at the beginning of this time period. (CHECK US CENSUS QUALITY IN TERRITORIES), and were sites of ongoing military conflicts between the US government and tribal nations.
-
-In the Western Region, states reported uniformly small Black populations at the beginning of this period, with varying (but positive) rates of growth. Note that many of these places were not yet states at the beginning of the time series; only California, Oregon, and Nevada had been admitted as states by 1870. California recorded the largest Black population by the end of the period. The Census records an increase in Black population in California from about 3000 in 1870 to about 84,000 in 1930. Arizona, Colorado, and Washington had smaller but substantial Black populations by the end of the time period, at around 10,000 persons. 
-
-In the Southern Region (which includes all states that seceded to join the former Confederate States of America in addition to Delaware, Maryland, West Virginia, Kentucky, and Oklahoma), Black populations were consistently large during this period, with the largest populations in states in which white elites had enslaved millions of Black people for work in plantation-driven agriculture, like Georgia, Mississippi, and South Carolina. For example, the Census recorded 540,000 Black residents of Georgia in 1870, increasing to 1,100,000 Black residents in 1930. 
-
-Note though, that these increases in population size do not always mirror trends in relative population composition (see Panel 2). During this period, even as Black populations grew dramatically in some Northeastern and Midwestern states during the first Great Migration, proportional population shares of Black residents remained low and relatively stable. In the South, even as Black populations continued to grow in absolute terms, the proportional population share of Black residents was decreasing consistently throughout the region. 
-
-This divergence between absolute and relative population trends illustrates that Black population share likely fails to adequately capture the salience of race for local political contexts. 
-
-Next let's look at sharecropping
-
-```{r blk-ts, fig.cap = "Black population by state 1870-1940"}
-p1<-ggplot(dat,
-       aes(x = year, y = blk / tot_pop,
-           group = state)) + 
-  geom_line(alpha = 0.5) + 
-  geom_text(data = dat %>% 
-              filter(!(is.na(region))) %>% 
-              filter(year == 1930),
-            aes(x = year,
-                y = blk / tot_pop,
-                label = state),
-            position = position_dodge(width = 8),
-            size = 2,
-            alpha = 0.7) + 
-  labs(subtitle = "Panel 2. Proportion Black",
-       y = "Proportion",
-       x = "Year") + 
-  facet_wrap(~region)
-
-p2<-ggplot(dat,
-       aes(x = year, y = blk,
-           group = state)) + 
-  geom_line(alpha = 0.5) + 
-  geom_text(data = dat %>% 
-              filter(!(is.na(region))) %>% 
-              filter(year == 1930),
-            aes(x = year,
-                y = blk,
-                label = state),
-            position = position_dodge(width = 8),
-            size = 2,
-            alpha = 0.7) + 
-  # scale_y_log10() + 
-  labs(subtitle = "Panel 1. Black population",
-       y = "Count",
-       x = "Year") + 
-  facet_wrap(~region)
-
-grid.arrange(p2, p1, nrow = 1)
-```
-
-First, I evaluate the bivariate relationship between Black farm residency and Black tenant farm residency. The gap between the line y=x and plotted values indicates the number of Black people living on farms owned by their family. Tenant farming was the dominant mode of farming for Black farmers in all states with a substantial population of Black farmers in 1920. Virginia appears to be the only state with a substantial share of Black farm owners as of 1920. In states like Georgia, Mississippi, and South Carolina, these data clearly illustrate the dominance of the tenant-farming based sharecropping system. 
-
-```{r}
-ggplot(dat %>% 
-             filter(year == 1920,
-                    blk_farms >= 1e4),
-       aes(x = blk_farms, y = blk_sharecrop,
-           label = state)) + 
-  geom_text(alpha = 0.5) + 
-  geom_abline(slope = 1) + 
-  labs(x = "Black people living on farms",
-       y = "Black people living on tenant farms",
-       subtitle = "States with more than 10,000 Black persons living on farms, 1920")
-```
-
-And the bivar with sharecropping / blk pop comp
-
-```{r}
-ggplot(dat %>% 
-         filter(year == 1920),
-       aes(x = blk / tot_pop, y = blk_sharecrop,
-           label = state,
-           color = region)) + 
-  #geom_point(alpha = 0.5) + 
-  geom_text(alpha = 0.5) + 
-  scale_y_log10() + 
-  labs(x = "Proportion Black pop",
-       y = "Black people living on tenant farms",
-       subtitle = "States with more than 10,000 Black persons living on farms, 1920")
-```
-
-
-```{r}
-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = blk_sharecrop + 10)) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis",
-                        trans = "log10") + 
-  theme_void() + 
-  labs(fill = "Number of Black residents\non tenant farms\n(note logarithmic scale)")
-```
-
-Places with large Black pops in 1920 also had very high sharecropping rates. Not a perfect correlation, VA and FL are negative off-trend, and lots of variance for low Black pop states, probably just measurement error though. Likely makes sense to use sharecropping as log count rather than as proportion. 
-
-### Settlers and indigenous disposession
-
-2) HOMESTEAD CLAIMS - VERY CLEAR
-
-  Explain
-
-```{r}
-p1<-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = hs_acres / 1e6)) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis") + 
-  theme_void() + 
-  labs(fill = "Cumulative acres claimed\n(millions), 1920") + 
-  theme(legend.position = "bottom")
-
-p2<-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(hs_pop = hs_claims / tot_pop) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = hs_pop)) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis") + 
-  theme_void() +
-  labs(fill = "Claims per resident\n1920")  +
-  theme(legend.position = "bottom")
-
-grid.arrange(p1, p2, nrow = 1)
-```
-
-```{r}
-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(region = factor(region, 
-                         levels = c("West", 
-                                    "North Central",
-                                    "South",
-                                    "Northeast"))) %>% 
-  mutate(hs_pop = hs_claims / tot_pop) %>% 
-  ggplot(aes(x = hs_pop,
-             y = fct_reorder(state, hs_pop))) + 
-  geom_point() + 
-  labs(x = "Cumulative homestead claims per state population, 1920",
-       y = "",
-       color = "Census Region") + 
-  facet_wrap(~region, 
-             scales = "free_y")
-```
-  
-We use data on Homestead Act claims as an indicator of the volume of settlers at the time and place-level seeking to actively dispossess Native Nations of their lands. Data on homestead claims provide useful indicators of both the demographic size of the settler polity (measured as counts of claimants) and the magnitude of their resources (measured as acres claimed). COUPLED WITH WHAT ELSE? 
-
-Figure \@ref(fig:ts-homestead-claims) shows the distribution of Homestead Act claims made by settlers between 1868 and 1961. No homestead claims were completed in the states in the Northeast region. In general, states in the North Central (Midwest) and Western regions had higher volumes of claims, though Oklahoma and Arkansas in the South also saw relatively large numbers of claims. By the end of the Homestead era, Montana had seen the largest number of claimants (151,500), followed by North Dakota (135,448), South Dakota (114,172), Colorado (107,618), and Nebraska (104,260). 
-
-```{r ts-homestead-claims, fig.cap = "Cumulative Homestead act claims by state and year"}
-ggplot(hs %>% 
-         filter(year < 1940),
-       aes(x = year,
-           y = hs_claims,
-           group = state)) + 
-  geom_line(alpha = 0.5) + 
-  geom_text(data = hs %>% 
-              filter(year == 1935),
-            aes(x = year,
-                y = hs_claims,
-                label = state),
-            position = position_nudge(x = 8),
-            alpha = 0.7,
-            size = 2.5) + 
-facet_wrap(~region)  + 
-  labs(y = "Number of claims",
-       x = "Year",
-       subtitle = "") + 
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-```
-
-NATIVE LANDHOLDINGS OVER TIME ARE DIRECTLY RELATED TO HOMESTEAD CLAIMS, MECHANISM OF DISPOSESSION. 
-
-PULL AGENTS DATA FOR LANDHOLDINGS? 
-
-### Urbanization and European immigration
-
-```{r immig-map, fig.cap = "White immigrant population in cities 1920"}
-dat %>% 
-  filter(year == 1920) %>% 
-  mutate(state = tolower(statename)) %>% 
-  ggplot(aes(fill = urban_immig_pop)) + 
-  geom_map(aes(map_id = state), map = map) + 
-  expand_limits(x = map$long, y = map$lat) + 
-  scale_fill_continuous(type = "viridis",
-                        trans = "log10") + 
-  theme_void() + 
-  labs(fill = "Population\n(note logarithmic scale)")
-```
-
-
-```{r urban-ts, fig.cap = "Urban white immigrant population by state 1880-1920"}
-p1<-ggplot(dat%>% 
-             filter(!(is.na(region))),
-           aes(x = year, y = urban_immig_pop / tot_pop,
-               group = state)) + 
-  geom_line(alpha = 0.5) + 
-  labs(subtitle = "Proportion of population white immigrant urban",
-       y = "Proportion",
-       x = "Year") + 
-  facet_wrap(~region)
-
-p2<-ggplot(dat%>% 
-             filter(!(is.na(region))),
-           aes(x = year, y = urban_immig_pop,
-               group = state)) + 
-  geom_line(alpha = 0.5) + 
-  labs(subtitle = "White immigrant urban population",
-       y = "Count",
-       x = "Year")+ 
-  facet_wrap(~region)
-
-grid.arrange(p2, p1, nrow = 1)
-```
-
-increase in proportion of households in urban across regions
-
-Also clear increase in absolute n of households in urban settings. 
-
-MAYBE ALSO NOTE WHITE IMMIG POP IN FRONTIER STATES, DIFFERENT REGIMES FOR INCORPORATION, DIFFERENT RACIALIZATION PROCESSES FOR NORTH / W EURO IMMIGS VS SOUTH / EAST / IRISH?
-
-## Geographic variation in social and carceral state capacities 1880 - 1920
-
-what are states doing? how does it vary across places and over time? 
-
-### Employment in core roles for the emergent welfare and carceral states
-
-```{r emp-ts-plot, fig.cap="Employment rates per 1000 population 1900 - 1930 (US States, PUMS data)"}
-dat %>% 
-  filter(year > 1880) %>% 
-  group_by(state, year) %>% 
-  summarize(police = sum(police) / sum(tot_pop) * 1e3,
-            teachers = sum(teachers) / sum(tot_pop) * 1e3,
-            socworkers = sum(socwork) / sum(tot_pop) * 1e3) %>% 
-  pivot_longer(cols = police:socworkers,
-               names_to = "name",
-               values_to = "employment")  %>%  
-  filter(year < 1940) %>% 
-  ggplot(aes(x = year, y = employment)) + 
-  geom_line(aes(group = state), alpha = 0.1) + 
-  geom_line(data = dat %>% ### add national line
-              group_by(year, region) %>%
-              filter(year > 1880, year < 1940) %>% 
-              summarize(police = sum(police, na.rm=T) / sum(tot_pop, na.rm=T) * 1e3,
-                        teachers = sum(teachers, na.rm=T) / sum(tot_pop, na.rm=T) * 1e3,
-                        socworkers = sum(socwork, na.rm=T) / sum(tot_pop, na.rm=T) * 1e3) %>%
-              pivot_longer(cols = police:socworkers,
-                           names_to = "name",
-                           values_to = "employment"),
-  aes(x = year, y = employment, color = region), linewidth = 1) +
-  facet_wrap(~name) + 
-  scale_y_log10() + 
-  labs(subtitle = "note variable y axis scales, national average dashed",
-       y = "Employment per 1,000 population (note log scale)") + 
-  theme(legend.position = "bottom")
-```
-
-During this period, we see very clear upward trajectories in employment in each of three categories: police, social workers, and teachers. At the national level, police employment nearly doubled from about 0.7 per 1,000 in 1900 to 1.3 per 1,000 population in 1930. 
-Data on social workers shows an employment rate of 5 per 10,000 in 1900 nationally doubling to a rate of 1 per 1,000 by 1930. Teachers shows 1900 rate of 5.5 per 1,000, 1930 of 8.6 per 1,000. 
-
-Figure 1 shows substantial variation in state employment initial values and trajectories during this period (thin solid lines in fig 1). There is a clear upward trajectory in employment rates for each class of worker. Social workers experienced the largest relative rate of growth (a feature of the near-zero initial rate of employment in most states), while teachers experience the largest absolute rate of growth nationally.  
-
-```{r tab1}
-### tabular mean / variance
-t<-dat %>% 
-  group_by(state, year) %>% 
-  summarize(police = sum(police) / sum(tot_pop) * 1e3,
-            teachers = sum(teachers) / sum(tot_pop) * 1e3,
-            socworkers = sum(socwork) / sum(tot_pop) * 1e3) %>% 
-  pivot_longer(cols = police:socworkers,
-               names_to = "name",
-               values_to = "employment")  %>% 
-  group_by(year, name) %>% 
-  summarize(mean = mean(employment, na.rm=T),
-                        sd = sd(employment, na.rm=T)) %>% 
-  filter(year == 1900 | year == 1930) 
-
-knitr::kable(t, 
-             caption = "Table 1. Mean and variance of state employment rates 1900 - 1930",
-             digits = 3)
-```
-
-There is substantial heterogeneity in 1900 values for social policy employment across states. The standard deviation of social work employment is greater than the mean value of social work employment. For police, the sd is half the value of the mean, and for teachers it is one third of the value of the mean. At 1930, the sd for social work employment had increased dramatically, as had the sd for police employment. The sd for teacher employment was relatively stable over the period. These features show clear variation in starting conditions of employment during the period and suggest variation in trajectories of growth over the period. 
-
-Some of this heterogeneity in starting conditions and trajectories is likely a feature of regional variation in policy configurations (which we will seek to explain variation in racial political economy as we proceed). 
-
-```{r emp-ts-region, fig.cap = "Employment rates per 1000 population 1900 - 1930 (US States, PUMS data)"}
-
-### CUT
-
-dat %>% 
-  filter(!(is.na(region))) %>% 
-  group_by(region, year) %>% 
-  summarize(police = sum(police) / sum(tot_pop) * 1e3,
-            teachers = sum(teachers) / sum(tot_pop) * 1e3,
-            socworkers = sum(socwork) / sum(tot_pop) * 1e3) %>% 
-  pivot_longer(cols = police:socworkers,
-               names_to = "name",
-               values_to = "employment")  %>%  
-  ggplot(aes(x = year, y = employment, 
-             color = region)) + 
-  geom_line() + 
-  scale_y_log10() + 
+st %>% 
+  left_join(plot_dat) %>% 
+  filter(!is.na(value)) %>% 
+  ggplot(aes(fill = value)) + 
+  geom_sf() + 
   facet_wrap(~name, ncol = 3) + 
-  labs(subtitle = "note variable y axis scales")
+  theme_void() + 
+  scale_fill_viridis_c() + 
+  theme(legend.position = "bottom") + 
+  labs(fill = "")
 ```
 
-In figure 2 we subset the data from figure 1 to regional averages using the four-region US Census classification for states. Clear patterns are visible in the data here. On average, states in the US South had lower employment rates for all categories of social policy system employees. Northeastern states had the highest levels of police and social work employment across the period. And states in the West and North Central (Midwest) had the highest average rates of teacher employment. However, there is also substantial sub-regional variation in employment rates, as shown in Figure 3.
+This map shows key features of the demography of the US in 1900 that are closely related to the geography of settler colonialism in the early 20th century US. 
 
-```{r emp-ts-region2, fig.cap = "Employment rates per 1000 population 1900 - 1930 (US States, PUMS data)"}
-dat %>% 
-  group_by(state, region, year) %>% 
-  filter(!is.na(region)) %>% 
-  summarize(police = sum(police) / sum(tot_pop) * 1e3,
-            teachers = sum(teachers) / sum(tot_pop) * 1e3,
-            socworkers = sum(socwork) / sum(tot_pop) * 1e3) %>% 
-  pivot_longer(cols = police:socworkers,
-               names_to = "name",
-               values_to = "employment")  %>%  
-  ggplot(aes(x = year, y = employment, group = state)) + 
-  geom_line(alpha = 0.3) + 
-  facet_wrap(region~name, scales = "free", ncol = 3) + 
-  labs(subtitle = "note variable y axis scales")
+BLACK POPS IN JIM CROW SOUTH
+
+US BORN WHITE POPS IN SOUTH, NEW ENGLAND, RURAL PARTS OF INNER MIDWEST
+
+FOREIGN BORN WHITE POPS THROUGHOUT CITIES, WESTERN FRONTIER
+
+FIG 2, 3 - native disposession
+
+```{r}
+st<-states(cb = T) %>%
+  st_transform(8528) %>% 
+  filter(!STUSPS%in%
+           c("HI", "AK", 
+             "PR", "GU", "AS","VI",
+             "MP"))
+
+st_acres<-data.frame(state = st$STUSPS,
+                     total_acres_2021 = as.numeric(set_units(st_area(st), "acre")))
+
+### royce map data
+## available here: https://data-usfs.hub.arcgis.com/datasets/usfs::tribal-lands-ceded-to-the-united-states-feature-layer/about
+## and archived here: https://data.nativeland.info/dataset/indian-land-cessions-in-the-united-states-1784-1894/resource/e2b874d5-3c39-4287-bf89-d4ef14b87c83
+cessions<-read_sf("./data/us_forest_cessions_royce/S_USA.TRIBALCEDEDLANDS.shp")
+
+cessions_dat<-read_csv("./data/us_forest_cessions_royce/royce.csv") %>% 
+  mutate(time = as_date(TribalCededLandsTableCessDate1),
+         year = year(time)) %>% 
+  rename(CESSNUM = TribalCededLandsNewCESSNUM) %>% 
+  select(CESSNUM, year)
+
+cessions<-cessions %>% 
+  left_join(cessions_dat)
+
+cessions<-cessions %>% 
+  st_transform(8528)
+
+cessions_diff<-st_difference(st, st_union(cessions))
+
+cessions_diff<-cessions_diff %>% 
+  mutate(year = NA)
+
+### layer state boundaries
+cessions<-st_intersection(cessions, st)
+### add in settler claimed territories as of 1796
+cessions2 <- cessions %>%  
+  bind_rows(cessions_diff %>%  
+              mutate(year = NA))
+
+ggplot(cessions2,
+       aes(fill = year)) + 
+  geom_sf() + 
+  theme_void() + 
+  scale_fill_viridis_c() + 
+  labs(fill = "Year",
+       title = "Post-1784 Indigenous disposession",
+       subtitle = "Cessions to US federal government through 1894") 
 ```
 
-Figure 3 shows how states within regions still exhibit substantial variation in both initial employment rates and growth trajectories between 1900 and 1930 for social policy employment. Again, note that social work employment began at or near zero in 1900 in all states as the social work was built as a concrete profession. In the South a cluster of low-employment states drive the regional trend for social work and police, while a cluster of high employment states appear to drive the trend for social work employment in the Northeast, North Central, and West. 
+MANY OF THE LOCATIONS THESE FIRST GENERATION SETTLERS WERE GOING TO WERE RECENT DISPOSESSIONS, PARTICULARLY CIVIL WAR ERA. IN 1900, MANY OF THESE LANDS HAD BEEN CLAIMED BY US IN VERY RECENT PAST, WITHIN 50 YEARS. SECOND / THIRD WAVE OF WESTERN SETTLERS. BUILDING THE SETTLER COLONIAL POLITY / NATION STATE AS KEY AGENDAS.
 
-```{r emp-map, fig.cap = "Employment rates per 1,000 1930"}
-t<-dat %>% 
-  group_by(state, region, year) %>% 
-  summarize(police = sum(police) / sum(tot_pop) * 1e3,
-            teachers = sum(teachers) / sum(tot_pop) * 1e3,
-            socworkers = sum(socwork) / sum(tot_pop) * 1e3) %>% 
-  pivot_longer(cols = police:socworkers,
-               names_to = "name",
-               values_to = "employment")  %>%  
-  filter(year == 1930) 
+```{r fig.cap = "Disposession of Native lands in the 19th c."}
+p1<-ggplot(disp,
+       aes(x = year,
+           group = STUSPS)) + 
+  geom_line(aes(y = cumulative_ceded / 1e6)) + 
+  labs(x = "Year",
+       y = "Acres (millions)") + 
+  lims(y = c(0, 150)) + 
+  facet_wrap(region~division) + 
+  labs(subtitle = "1. Total land cessions")
 
-p1<-plot_usmap(data = t %>% 
-             filter(name == "socworkers"),
-           values = "employment")+ 
+p2<-ggplot(disp,
+       aes(x = year,
+           group = STUSPS)) + 
+  geom_line(aes(y = prop_ceded)) + 
+  labs(x = "Year",
+       y = "Proportion") + 
+  facet_wrap(region~division) + 
+  labs(subtitle = "2. Proportion of state area")
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+This shows the timing and spatial distribution in cumulative land disposession by state and region. Panel 1 shows the lands claimed by the US in millions of acres by state from 1796 - 1894. Panel 2 shows these patterns of Native land loss as a proportion of the contemporary areas of US states.  
+
+Clear regional patterns here. Land loss occurred earlier in states closer to the Atlantic coast. Dispossession accelerated in the North Central and Western regions throughout the middle portion of the 19th c. 
+
+```{r fig.cap = "Two mechanisms for the distribution of disposessed Native Lands to settlers"}
+pdat<-disp %>% 
+  select(STUSPS, total_acres_2021) %>% 
+  distinct() %>% 
+  left_join(dist %>% 
+              filter(year == 1900) %>% 
+              select(STUSPS, morill_acres_cum, homestead_acres_cum)) %>% 
+  replace_na(list(morill_acres_cum = 0, homestead_acres_cum = 0)) %>% 
+  left_join(st)
+
+p1<-ggplot(pdat) + 
+  geom_sf(aes(geometry = geometry,
+              fill = morill_acres_cum / 1e6)) + 
   scale_fill_viridis_c() + 
-  labs(title = "social workers",
-       fill = "") + 
+  theme_void() + 
+  labs(fill = "Acres (millions)",
+       subtitle = "1. Lands patented under Morill Act (1862) by 1900") + 
   theme(legend.position = "bottom")
 
-p2<-plot_usmap(data = t %>% 
-             filter(name == "teachers"),
-           values = "employment")+ 
+
+p2<-ggplot(pdat) + 
+  geom_sf(aes(geometry = geometry,
+              fill = homestead_acres_cum / 1e6)) + 
   scale_fill_viridis_c() + 
-  labs(title = "teachers",
-       fill = "") + 
+  theme_void() + 
+  labs(fill = "Acres (millions)",
+       subtitle = "2. Lands patented under Homestead Act (1862) by 1900") + 
   theme(legend.position = "bottom")
 
-p3<-plot_usmap(data = t %>% 
-             filter(name == "police"),
-           values = "employment")+ 
-  scale_fill_viridis_c() + 
-  labs(title = "police per 1,000",
-       fill = "") + 
-  theme(legend.position = "bottom")
+grid.arrange(p1, p2, ncol = 2)
+```
 
-grid.arrange(p1, p2, p3, ncol = 3)
+FIGURE - by employment type, facet ~ year
+
+```{r}
+pdat<-pop %>% 
+  left_join(st)
+# could use children in denominator here
+# keeping as total population for comparison 
+ggplot(pdat,
+       aes(fill = teachers / tot_pop * 1e3)) + 
+  geom_sf(aes(geometry = geometry)) + 
+  facet_wrap(~year) + 
+  scale_fill_viridis_c() + 
+  theme_void() + 
+  labs(fill = "Teachers per\n1,000 population")
+
+ggplot(pdat,
+       aes(fill = police / tot_pop * 1e3)) + 
+  geom_sf(aes(geometry = geometry)) + 
+  facet_wrap(~year) + 
+  scale_fill_viridis_c() + 
+  theme_void() + 
+  labs(fill = "Police per\n1,000 population")
+
+ggplot(pdat,
+       aes(fill = socwork / tot_pop * 1e3)) + 
+  geom_sf(aes(geometry = geometry)) + 
+  facet_wrap(~year) + 
+  scale_fill_viridis_c() + 
+  theme_void() + 
+  labs(fill = "Social Workers per\n1,000 population")
   
 ```
 
-Figure 4 shows these distributions as state choropleth maps for 1930 employment per 1,000. It clearly shows the geographic distribution of clusters of high and low employment states. Northeastern states like New York, New Jersey, and Massachusetts had very high levels of police and social work employment. Midwestern states like Minnesota, Michigan, and Illinois also had high social work and police employment, as did California. Midwestern and Plains states like North and South Dakota, Wyoming, and Iowa had especially high levels of teacher employment. 
+FIG 2 - employment maps. 
 
-Employment provides a measure of the magnitude of state and private investment in social control and social services (aside from transfers - think about distinction b/w hands on and redistribution). But this is one dimension of infrastructure. Given the ambiguity in 'social state capacity', we are working multiple measures to think this through. 
+INST MAPS
 
-### capacity for therapeutic coercion: kids in institutional group quarters
+```{r}
+ggplot(pdat, aes(fill = inst_correctional / tot_pop * 1e3)) + 
+  geom_sf(aes(geometry = geometry)) + 
+  facet_wrap(~year) + 
+  theme_void() + 
+  scale_fill_viridis_c()
 
-Next, let's turn to reach of social state policy systems. One way to get at that is through the existence and utilization of era-specific policy institutions. Here, we will look at the distribution of children recorded as being housed in 'institutional group quarters' on the 1900 - 1930 decennial censuses. To improve the quality of measurement, I use the 100% decennial data for 1900, 1920, 1930 and 1940. The 1910 census data available through IPUMS only includes detailed group quarters information on the 1% and 1.4% samples and after exploratory work, they do not appear to be continuous with the 100% data. I exclude 1910 data for now. 
+ggplot(pdat, aes(fill = inst_mental / tot_pop * 1e3)) + 
+  geom_sf(aes(geometry = geometry)) + 
+  facet_wrap(~year) + 
+  theme_void() + 
+  scale_fill_viridis_c()
 
-Group quarters indicate non-traditional housing situations (e.g. not in a house or apartment). Here, we subset this group to include only children recorded as residents of 'correctional institutions', 'mental institutions', or 'institutions for the elderly, handicapped, and poor'. This excludes children recorded as living in rooming houses, military housing, other non-institutional settings. Our goal here is to capture the magnitude of efforts by both public and private actors to coercively or therapeutically detain children for purposes of social control or social welfare.   
-
-```{r gq-ts, fig.cap = "Children in institutional group quarters 1900 - 1930"}
-dat %>% 
-  filter(year!=1910,
-         !(is.na(region))) %>% 
-  mutate(across(child_inst_correctional:child_inst_poor_disabled, 
-                ~ .x/children * 1e3)) %>% 
-  pivot_longer(cols = child_inst_correctional:child_inst_poor_disabled,
-               names_to = "type",
-               values_to = "pop") %>% 
-  ggplot(aes(x = year, y = pop)) + 
-  geom_line(aes(group = state),
-            alpha = 0.2) + 
-  geom_line(data = dat %>% ### add national line
-              filter(year!=1910,
-                     !(is.na(region))) %>%
-              group_by(year) %>% 
-              summarize(across(child_inst_correctional:child_inst_poor_disabled, 
-                               ~ sum(.x, na.rm=T)/sum(children, na.rm=T) * 1e3)) %>% 
-              pivot_longer(cols = child_inst_correctional:child_inst_poor_disabled,
-                           names_to = "type",
-                           values_to = "pop"),            
-            aes(x = year, y = pop), linewidth = 2, lty = 2) + 
-  facet_wrap(~type, scales = "free") + 
-  labs(y = "institutional population per 1,000 children",
-       subtitle = "note varying y axes. National average dashed, state values solid")
-
+ggplot(pdat, aes(fill = inst_poor_disabled / tot_pop * 1e3)) + 
+  geom_sf(aes(geometry = geometry)) + 
+  facet_wrap(~year) + 
+  theme_void() + 
+  scale_fill_viridis_c()
 ```
 
-These plots strongly suggest that there are measurement artifacts present in the census data for these measures. Many states have broken time series with zeroes observed in 1920 between non-zero rates in 1900 and 1930, or large jumps between periods that defy expected linear growth patterns that revert in later periods. I think it makes sense to treat these with caution. 
+THEN MODELS
 
-I'd like to use total group quarters, but it includes rooming houses, which are a huge proportion of the count. COULD JUST USE GQ == 3 (Institutions). That may be the ticket. 
-
-```{r gq-box, fig.cap = "Children in institutional group quarters 1930"}
-dat %>% 
-  filter(year == 1930) %>% 
-  mutate(across(child_inst_correctional:child_inst_poor_disabled, 
-          ~ .x/children * 1e3)) %>% 
-  pivot_longer(cols = child_inst_correctional:child_inst_poor_disabled,
-               names_to = "type",
-               values_to = "pop") %>% 
-  ggplot(aes(x = type, y = pop, 
-             color = region)) + 
-  geom_boxplot()
-```
-
-## PRELIMINARY MODELS
-
-IMPORTANCE OF URBAN? ADD EXTRA PLOT HERE? BLK / URBAN?
-
-1) jim crow salience (can we define as brutal coupling of formal / informal? less state capacity built for maintenance / strategic underinvestment)
-2) exclusion / formal soc control salience in urban non-S
+DISPOSESSION MEASURES - YEAR OF LAST TREATY SIGNED, ACRES PATENTED UNDER MORILL AND HOMESTEAD
 
 
-<!-- employment trajectories look kinda log-linear. almost certainly non-linear, so need a curve on trajectories regardless. log probably solves it well enough.  -->
 
-<!-- q1: salience of settler expropriotion -> state formation -->
-
-<!-- four models, each employment outcome + children in poverty institutions -->
-
-<!-- start with lm for log(rates) -->
-
-<!-- trouble fitting models for sparse data (e.g. social workers, children in gq), but works fine and in expected directions for teachers, police.  -->
-
-<!-- switch to brms for estimation on tricky ones -->
-
-<!-- ```{r} -->
-<!-- ### FIT PROBLEM WAS WITH EARLY YEARS NEAR ZERO AND LOW VARIANCE -->
-<!-- model_dat <- dat %>%  -->
-<!--   filter(year>=1880) %>%  -->
-<!--   mutate(police_rate = (police + 1) / tot_pop * 1e5, -->
-<!--          socwork_rate = (socwork + 1) / tot_pop * 1e5, -->
-<!--          teacher_rate = (teachers + 1) / tot_pop * 1e5, -->
-<!--          child_inst_rate = (child_inst_poor_disabled + 0.1) /  -->
-<!--            children * 1e5, -->
-<!--          prop_blk = (blk + 1) / tot_pop, -->
-<!--          prop_urban_immig = urban_immig_pop / tot_pop, -->
-<!--          hsclaim_prop = hs_claims / tot_pop, -->
-<!--          year = scale(year)) -->
-
-<!-- m_police<-brm(log(police_rate) ~  -->
-<!--                  scale(hsclaim_prop) + -->
-<!--                  scale(prop_urban_immig) + -->
-<!--                  scale(prop_blk) +  -->
-<!--                  scale(log(blk_sharecrop + 1)) +  -->
-<!--                  year +  -->
-<!--                  (1 + year|state), -->
-<!--                data = model_dat) -->
-
-<!-- m_teacher<-brm(log(teacher_rate) ~  -->
-<!--                  scale(hsclaim_prop) + -->
-<!--                  scale(prop_urban_immig) + -->
-<!--                  scale(prop_blk) +  -->
-<!--                  scale(log(blk_sharecrop + 1)) +  -->
-<!--                  year +  -->
-<!--                  (1 + year|state), -->
-<!--                data = model_dat) -->
-
-<!-- m_socwork<-brm(log(socwork_rate) ~  -->
-<!--                  scale(hsclaim_prop) + -->
-<!--                  scale(prop_urban_immig) + -->
-<!--                  scale(prop_blk) +  -->
-<!--                  scale(log(blk_sharecrop + 1)) +  -->
-<!--                  year +  -->
-<!--                  (1 + year|state), -->
-<!--                data = model_dat) -->
-
-<!-- sc_teacher<-lmer(log(teacher_rate) ~  -->
-<!--               scale(hsclaim_prop) + -->
-<!--               year +  -->
-<!--               (1 + year|state), -->
-<!--             data = model_dat, -->
-<!--             control=lmerControl(optimizer="nloptwrap", -->
-<!--                                 optCtrl=list(maxfun=2e5))) -->
-
-<!-- sc_socwork<-brm(log(socwork_rate) ~  -->
-<!--               scale(hsclaim_prop) + -->
-<!--               year +  -->
-<!--               (1 + year|state), -->
-<!--             data = model_dat) -->
-
-<!-- sc_gq<-brm(log(child_inst_rate) ~  -->
-<!--               scale(hsclaim_prop) + -->
-<!--               year +  -->
-<!--               (1 + year|state), -->
-<!--             data = model_dat) -->
-
-<!-- jc_police<-lmer(log(police_rate) ~  -->
-<!--               scale(prop_blk) + -->
-<!--               year +  -->
-<!--               (1 + year|state), -->
-<!--             data = model_dat, -->
-<!--             control=lmerControl(optimizer="nloptwrap", -->
-<!--                                 optCtrl=list(maxfun=2e5))) -->
-
-<!-- jc_teacher<-lmer(log(teacher_rate) ~  -->
-<!--               scale(prop_blk) + -->
-<!--               year +  -->
-<!--               (1 + year|state), -->
-<!--             data = model_dat, -->
-<!--             control=lmerControl(optimizer="nloptwrap", -->
-<!--                                 optCtrl=list(maxfun=2e5))) -->
-
-<!-- jc_socwork<-lmer(log(socwork_rate) ~  -->
-<!--               scale(prop_blk) + -->
-<!--               year +  -->
-<!--               (1 + year|state), -->
-<!--             data = model_dat, -->
-<!--             control=lmerControl(optimizer="nloptwrap", -->
-<!--                                 optCtrl=list(maxfun=2e5))) -->
-
-<!-- jc_gq<-lmer(log(child_inst_rate) ~  -->
-<!--               scale(prop_blk) + -->
-<!--               year +  -->
-<!--               (1 + year|state), -->
-<!--             data = model_dat, -->
-<!--             control=lmerControl(optimizer="nloptwrap", -->
-<!--                                 optCtrl=list(maxfun=2e5))) -->
-<!-- ``` -->
-
-<!-- This all looks fine. How do I want to visualize this?  -->
-
-<!-- we'll eventually do trajectory visuals for each regime type - what is the expected trajectory under different regimes, where do we end up in 1930? Think about how to handle to intercepts / slopes. What would a zero mean? pulling out everything not directly in national trend and regime measures. is that what I'm after? I guess I really do just want the regime-specific trend lines, in which case E[rate | regime] should zero out the individual idioscyncracies. it's oversimplified, but that should be ok. Just be super clear on what the iterpretation is on prediction. it's not a hypothetical state, its the mean expectation for the slope of the regime var.    -->
-
-<!-- model is  -->
-
-<!-- \[\hat{Y} = \alpha + \beta \textrm{Regime} + \delta year + \epsilon\] -->
-
-<!-- Here we are very much interested just in $\beta$, the rest are nuissance parameters. that works. can vis e[state type] under diffferent REGIME sets.  -->
-
-<!-- Q: are there places with competing regime sets? CA, WA, others? where we need a multivariate regime model?  -->
-
-<!-- ```{r} -->
-<!-- new_dat<-data.frame(year =  c(1.3, 1.3, 1.3), -->
-<!--                     hsclaim_prop = c(0, 0.05, 0.15)) -->
-<!-- t<-predict(sc_police,  -->
-<!--            newdata = new_dat, -->
-<!--            re.form = ~0, -->
-<!--            type = "link") -->
-
-<!-- t1<-predict(sc_teacher,  -->
-<!--            newdata = new_dat, -->
-<!--            re.form = ~0, -->
-<!--            type = "link") -->
-
-<!-- exp(t1) -->
+model 1: teachers ~ jim crow, urbanization, disposession (child control?)
 
 
-<!-- ``` -->
+
+
+
 

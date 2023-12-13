@@ -37,50 +37,9 @@ st<-states(cb = T) %>%
              "PR", "GU", "AS","VI",
              "MP"))
 
-aianh<-native_areas(cb = T) %>%
-  st_transform(8528)  
-
-### lower 48
-ggplot(st%>% 
-         filter(!STUSPS%in%
-                  c("HI", "AK", 
-                    "PR", "GU", "AS","VI",
-                    "MP"))) + 
-  geom_sf() + 
-  theme_void()
-
-### aianh
-ggplot(aianh) + 
-  geom_sf() + 
-  theme_void()
-
-### overlay
-ggplot(st) + 
-  geom_sf() + 
-  geom_sf(data = aianh,
-          fill = "dodgerblue") + 
-  theme_void()
-
-aianh_acres<-data.frame(name = aianh[[6]],
-                        aianh_acres_2021 = as.numeric(set_units(st_area(aianh), "acre")))
-
 st_acres<-data.frame(state = st$STUSPS,
                      total_acres_2021 = as.numeric(set_units(st_area(st), "acre")))
 
-### subtract out aianh areas from states to compute (state - aianh) / state
-t<-st_intersection(st, aianh)
-#ggplot(t) + geom_sf()
-# area intersection
-state_overlap_aian<-data.frame(state = t$STUSPS,
-                            area = st_area(t))
-
-state_overlap_aian<-state_overlap_aian %>% 
-  group_by(state) %>% 
-  summarize(acres_aianh = as.numeric(set_units(sum(area), "acre"))) %>% 
-  left_join(st_acres) %>% 
-  mutate(prop_aianh = acres_aianh / total_acres_2021)
-
-## (st_area(st) - st_area(t)) / st_area(st)
 ### royce map data
 ## available here: https://data-usfs.hub.arcgis.com/datasets/usfs::tribal-lands-ceded-to-the-united-states-feature-layer/about
 ## and archived here: https://data.nativeland.info/dataset/indian-land-cessions-in-the-united-states-1784-1894/resource/e2b874d5-3c39-4287-bf89-d4ef14b87c83
@@ -98,56 +57,10 @@ cessions<-cessions %>%
 cessions<-cessions %>% 
   st_transform(8528)
 
-ggplot(cessions,
-       aes(fill = year)) + 
-  geom_sf() + 
-  theme_void() 
-
-### WHAT IS THE STATUS OF THE ORIGINAL STATES? 1784 BOUNDARIES?
-
-### can pull unceded lands by year now!!!!!
-### this isn't quite right...
-### need to overlay full US map, then diff out ceded areas
-### the geography i want is NATIVE LANDS UNCEDED BY DATE.
-### ROYCE CONTAINS ONLY CESSIONS, SO UNCEDED IS NOT IN THERE
-
 cessions_diff<-st_difference(st, st_union(cessions))
 
-ggplot(st_union(cessions)) + 
-  geom_sf() + 
-  theme_void()
-
-ggplot(cessions,
-       aes(fill = year)) + 
-  geom_sf() + 
-  theme_void()
-
-ggplot(cessions_diff) + 
-  geom_sf() + 
-  theme_void()
-
-### cessions_diff is land not ceded prior to 1893. 
-### needs manual coding for pre 1784 claims
-st_1796<-c("ME", "NH", "VT", "NY", "MA",
-           "CT", "RI", "DE", "NJ", "PA",
-           "MD", "VA", "NC", "SC", "GA",
-           "WV", "KY", "TN")
-
 cessions_diff<-cessions_diff %>% 
-  mutate(st_1796 = STUSPS%in%st_1796,
-         year = NA)
-
-ggplot(cessions_diff,
-       aes(fill = st_1796)) + 
-  geom_sf() + 
-  theme_void()
-
-### unceded light blue, reservation dark blue
-ggplot(st) + 
-  geom_sf() + 
-  geom_sf(data = cessions_diff, fill = "dodgerblue") +
-  geom_sf(data = aianh, fill = "blue") + 
-  theme_void()
+  mutate(year = NA)
 
 ### layer state boundaries
 cessions<-st_intersection(cessions, st)
@@ -156,9 +69,14 @@ cessions2 <- cessions %>%
   bind_rows(cessions_diff %>%  
               mutate(year = NA))
 
-ggplot(cessions2,
+m1<-ggplot(cessions2,
        aes(fill = year)) + 
-  geom_sf()
+  geom_sf() + 
+  theme_void() + 
+  scale_fill_viridis_c() + 
+  labs(fill = "Year",
+       title = "Post-1784 Indigenous disposession",
+       subtitle = "Cessions to US federal government through 1894") 
 
 ts<-cessions2 %>% 
   select(year, STUSPS) %>% 
@@ -176,27 +94,82 @@ ts_full<-expand_grid(year = unique(ts$year),
   group_by(STUSPS) %>% 
   mutate(cumulative_ceded = cumsum(ceded_acres)) %>% 
   left_join(st_acres %>% 
-              rename(STUSPS = state))
+              rename(STUSPS = state)) 
+# 
+# ## no cession states
+# drops<-ts_full %>% 
+#   filter(year == 1893) %>% 
+#   filter(cumulative_ceded == 0) 
+
 
 ### add in full state area
 
-ggplot(ts_full,
-       aes(x = year, y = ceded_acres)) + 
+ts_full<-ts_full %>% 
+  filter(!STUSPS%in%drops$STUSPS) %>% 
+  full_join(pop %>% 
+              rename(STUSPS = state) %>% 
+              select(STUSPS, region, division) %>% 
+              distinct())
+
+p1<-ggplot(ts_full %>% 
+         filter(region == "Northeast"),
+       aes(x = year, y = ceded_acres / 1e6)) + 
   geom_line() + 
-  geom_line(aes(y = cumulative_ceded),
+  geom_line(aes(y = cumulative_ceded / 1e6),
             lty = 2) + 
-  facet_wrap(~STUSPS)
+  facet_wrap(division~STUSPS) + 
+  labs(x = "Year",
+       y = "Acres (millions)",
+       title = "Northeast") + 
+  lims(y = c(0, 150)) 
+
+p2<-ggplot(ts_full %>% 
+         filter(region == "South"),
+       aes(x = year, y = ceded_acres / 1e6)) + 
+  geom_line() + 
+  geom_line(aes(y = cumulative_ceded / 1e6),
+            lty = 2) + 
+  facet_wrap(division~STUSPS)+ 
+  labs(x = "Year",
+       y = "Acres (millions)",
+       title = "South") + 
+  lims(y = c(0, 150))
+
+p3<-ggplot(ts_full %>% 
+         filter(region == "North Central"),
+       aes(x = year, y = ceded_acres / 1e6)) + 
+  geom_line() + 
+  geom_line(aes(y = cumulative_ceded / 1e6),
+            lty = 2) + 
+  facet_wrap(division~STUSPS)+ 
+  labs(x = "Year",
+       y = "Acres (millions)",
+       title = "North Central") + 
+  lims(y = c(0, 150))
+
+p4<-ggplot(ts_full %>% 
+         filter(region == "West"),
+       aes(x = year, y = ceded_acres / 1e6)) + 
+  geom_line() + 
+  geom_line(aes(y = cumulative_ceded / 1e6),
+            lty = 2) + 
+  facet_wrap(division~STUSPS)+ 
+  labs(x = "Year",
+       y = "Acres (millions)",
+       title = "West") + 
+  lims(y = c(0, 150))
 
 ### top code cessions to total acres
 
 ts_full<-ts_full %>% 
   filter(!is.na(year)) %>% 
   mutate(prop_ceded = cumulative_ceded / total_acres_2021,
-         prop_ceded = ifelse(prop_ceded>1, 1, prop_ceded))
+         prop_ceded = ifelse(prop_ceded>1, 1, prop_ceded)) 
 
 ggplot(ts_full,
-       aes(x = year, y = prop_ceded)) + 
+       aes(x = year, y = prop_ceded)) +
   geom_line() +
+  geom_vline(xintercept = 1862, lty = 2) + 
   facet_wrap(~STUSPS)
 
 #### THIS CAPTURES DISPOSESSION GEOGRAPHY AND PROCESS. OUTPUT
@@ -219,42 +192,39 @@ morill<-read_csv("./data/landgrabu-data/Morrill_Act_of_1862_Indigenous_Land_Parc
 ### but for unceded, will use Yr_ST_Accept as alt
 ### take the minimum of all year variables for first year recorded dispossessed
 morill <- morill %>% 
-  mutate(Yr_US_Acquire = as.numeric(Yr_US_Acquire),
-         Yr_ST_Accept = as.numeric(Yr_ST_Accept),
+  mutate(Yr_ST_Accept = as.numeric(Yr_ST_Accept),
          Yr_Uni_Assing = as.numeric(Yr_Uni_Assign),
          Yr_Patent = as.numeric(Yr_Patent))
 ### rowwise minima of year measures
 morill<-morill %>% 
   rowwise() %>% 
-  mutate(year = min(c(Yr_US_Acquire, Yr_ST_Accept, 
-                      Yr_Uni_Assign, Yr_Patent),
-                    na.rm = T)) 
-
-
+  mutate(year = Yr_Patent) 
 
 morill<-morill %>% 
-  group_by(Loc_State, Ys_ST_Accept) %>% 
+  group_by(Loc_State, year) %>% 
   summarize(Acres = sum(Acres))
 
 full_ts<-expand_grid(Loc_State = unique(morill$Loc_State),
-                     Yr_Patent = unique(morill$Yr_Patent))
+                     year = unique(morill$year))
 
 morill<-morill %>% 
   right_join(full_ts) %>% 
   mutate(Acres = ifelse(is.na(Acres), 0, Acres)) %>% 
-  arrange(Loc_State, Yr_Patent)
+  arrange(Loc_State, year) %>% 
+  group_by(Loc_State) %>% 
+  mutate(cumulative_acres = cumsum(Acres)) %>% 
+  filter(year<=1930)
 
-ggplot(morill %>% 
-         filter(Yr_Patent<1921),
-       aes(x = Yr_Patent, y = Acres,
+morill_plot<-ggplot(morill,
+       aes(x = year, y = Acres / 1e6,
            group = Loc_State)) + 
   geom_line() + 
-  facet_wrap(~Loc_State)
-
-#### how do I think patenting impacts local politics - through active efforts to make ownership claims
-#### subsequent efforts to develop / exploit land
-
-###
+  geom_line(aes(y = cumulative_acres / 1e6),
+            lty = 2) + 
+  facet_wrap(~Loc_State) + 
+  labs(y = "Acres (millions)",
+       x = "Year",
+       subtitle = "Annual totals solid\nCumulative totals dashed")
 
 ### homestead act data
 #### load in homestead data and boarding school data

@@ -3,7 +3,8 @@
 #### make state time series for native land disposession up to 1920
 #### make state time series for settler distribution up to 1920
 # - land grab u shapes for morill parcels https://github.com/HCN-Digital-Projects/landgrabu-data
-# - royce map shapes from forest service 'Indian Land Cessions in US' https://data-usfs.hub.arcgis.com/datasets/usfs::tribal-lands-ceded-to-the-united-states-feature-layer/about
+# - royce map shapes from forest service 
+# 'Indian Land Cessions in US' https://data-usfs.hub.arcgis.com/datasets/usfs::tribal-lands-ceded-to-the-united-states-feature-layer/about
 # - homestead data from http://homestead.unl.edu/projects/homesteading-the-plains/data/blm_homesteads.xlsx
 
 library(tidyverse)
@@ -64,7 +65,7 @@ cessions<-st_intersection(cessions, st)
 ### add in settler claimed territories as of 1796
 cessions2 <- cessions %>%  
   bind_rows(cessions_diff %>% filter(st_1796==T) %>% 
-              mutate(year = 1784))
+              mutate(year = 1795))
 
 ts<-cessions2 %>% 
   select(year, STUSPS) %>% 
@@ -97,7 +98,6 @@ ts_full %>%
   select(year, STUSPS,
          ceded_acres, cumulative_ceded,
          total_acres_2021, prop_ceded) %>% 
-  rename(state = STUSPS) %>% 
   write_csv("./data/temp_disposession_ts.csv")
 
 ##############################################################
@@ -112,10 +112,11 @@ morill <- morill %>%
   mutate(Yr_ST_Accept = as.numeric(Yr_ST_Accept),
          Yr_Uni_Assign = as.numeric(Yr_Uni_Assign),
          Yr_Patent = as.numeric(Yr_Patent))
-### rowwise minima of year measures
+### rowwise maxima of year measures
+### aiming to capture salience of transactions
 morill<-morill %>% 
   rowwise() %>% 
-  mutate(year = min(c(Yr_ST_Accept, 
+  mutate(year = max(c(Yr_ST_Accept, 
                       Yr_Uni_Assign, 
                       Yr_Patent),
                     na.rm = T)) 
@@ -166,32 +167,33 @@ state_xwalk <- data.frame(state = state.name,
 
 hs<-hs %>% 
   left_join(state_xwalk) %>% 
-  rename(homestead_acres = value)
+  rename(homestead_acres = value) %>% 
+  ungroup()
 
 morill<-morill %>% 
   rename(state.abb = Loc_State) %>% 
   left_join(state_xwalk) %>% 
-  rename(morill_acres = Acres) 
-### join
-land_distrib<-morill %>% 
-  full_join(hs) 
+  rename(morill_acres = Acres) %>% 
+  ungroup()
+
 ### complete missing years
-full_ts<-expand_grid(state.abb = unique(land_distrib$state.abb),
-                     year = seq(min(land_distrib$year), max(land_distrib$year))) 
+### as foundation for join
 
-land_distrib<-land_distrib %>% 
-  mutate(morill_acres = ifelse(is.na(morill_acres),
-                               0,
-                               morill_acres),
-         homestead_acres = ifelse(is.na(homestead_acres),
-                                  0,
-                                  morill_acres))
-
-### compute cumulative acreage by year/state
-land_distrib <- land_distrib %>%
-  filter(year <= 1920) %>% 
-  arrange(state, year) %>%
-  group_by(state) %>%
+land_distrib<-ts_full %>% 
+  select(STUSPS, total_acres_2021) %>% 
+  distinct() %>% 
+  full_join(expand_grid(
+    year = 1862:1930,
+    STUSPS = unique(ts_full$STUSPS))) %>% 
+  left_join(morill %>% 
+              select(state.abb, year, morill_acres) %>% 
+              rename(STUSPS = state.abb)) %>% 
+  left_join(hs %>% 
+              select(state.abb, year, homestead_acres) %>% 
+                       rename(STUSPS = state.abb)) %>% 
+  replace_na(list(morill_acres = 0, homestead_acres = 0)) %>% 
+  arrange(STUSPS, year) %>%
+  group_by(STUSPS) %>%
   mutate(morill_acres_cum = cumsum(morill_acres),
          homestead_acres_cum = cumsum(homestead_acres)) %>%
   ungroup()
