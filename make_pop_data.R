@@ -20,7 +20,7 @@ dat_occ<-read_csv("./data/usa_00071.csv") %>%
               values_fill = 0)
 
 # pop (total, age, race, nativitiy, urban, farm, landown)
-dat_immig<-read_csv("./data/usa_00072.csv") %>%
+dat_immig<-read_csv("./data/usa_00076.csv") %>%
   rename_all(tolower) %>%
   group_by(year, statefip) %>%
   summarize(tot_pop = sum(perwt),
