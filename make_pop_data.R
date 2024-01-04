@@ -42,13 +42,13 @@ dat_immig<-read_csv("./data/usa_00076.csv") %>%
 ### group quarters, 100%
 gq<-read_csv("./data/usa_00069.csv") %>%
   rename_all(tolower) %>%
+  filter(year!=1910) %>% 
   group_by(year, statefip, gqtype) %>%
-  summarize(gq_pop = sum(perwt, na.rm = T)) %>%
+  summarize(gq_pop = sum(perwt)) %>%
   mutate(gqtype = case_when(
     gqtype == 2 ~ "inst_correctional",
     gqtype == 3 ~ "inst_mental",
-    gqtype == 4 ~ "inst_poor_disabled")) %>%
-  filter(gqtype!="other") %>%
+    gqtype == 4 ~ "inst_poor_disabled")) %>% 
   pivot_wider(names_from = gqtype, values_from = gq_pop,
               values_fill = 0)
 ### join, format for output

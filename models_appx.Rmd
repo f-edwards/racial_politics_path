@@ -1,0 +1,150 @@
+---
+title: "Untitled"
+author: "Frank Edwards"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## PRELIMINARY MODELS
+
+IMPORTANCE OF URBAN? ADD EXTRA PLOT HERE? BLK / URBAN?
+
+1) jim crow salience (can we define as brutal coupling of formal / informal? less state capacity built for maintenance / strategic underinvestment)
+2) exclusion / formal soc control salience in urban non-S
+
+
+employment trajectories look kinda log-linear. almost certainly non-linear, so need a curve on trajectories regardless. log probably solves it well enough.
+
+q1: salience of settler expropriotion -> state formation
+
+four models, each employment outcome + children in poverty institutions
+
+start with lm for log(rates)
+
+trouble fitting models for sparse data (e.g. social workers, children in gq), but works fine and in expected directions for teachers, police.
+
+switch to brms for estimation on tricky ones
+
+```{r}
+### FIT PROBLEM WAS WITH EARLY YEARS NEAR ZERO AND LOW VARIANCE
+model_dat <- dat %>%
+  filter(year>=1880) %>%
+  mutate(police_rate = (police + 1) / tot_pop * 1e5,
+         socwork_rate = (socwork + 1) / tot_pop * 1e5,
+         teacher_rate = (teachers + 1) / tot_pop * 1e5,
+         child_inst_rate = (child_inst_poor_disabled + 0.1) /
+           children * 1e5,
+         prop_blk = (blk + 1) / tot_pop,
+         prop_urban_immig = urban_immig_pop / tot_pop,
+         hsclaim_prop = hs_claims / tot_pop,
+         year = scale(year))
+
+m_police<-brm(log(police_rate) ~
+                 scale(hsclaim_prop) +
+                 scale(prop_urban_immig) +
+                 scale(prop_blk) +
+                 scale(log(blk_sharecrop + 1)) +
+                 year +
+                 (1 + year|state),
+               data = model_dat)
+
+m_teacher<-brm(log(teacher_rate) ~
+                 scale(hsclaim_prop) +
+                 scale(prop_urban_immig) +
+                 scale(prop_blk) +
+                 scale(log(blk_sharecrop + 1)) +
+                 year +
+                 (1 + year|state),
+               data = model_dat)
+
+m_socwork<-brm(log(socwork_rate) ~
+                 scale(hsclaim_prop) +
+                 scale(prop_urban_immig) +
+                 scale(prop_blk) +
+                 scale(log(blk_sharecrop + 1)) +
+                 year +
+                 (1 + year|state),
+               data = model_dat)
+
+sc_teacher<-lmer(log(teacher_rate) ~
+              scale(hsclaim_prop) +
+              year +
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+
+sc_socwork<-brm(log(socwork_rate) ~
+              scale(hsclaim_prop) +
+              year +
+              (1 + year|state),
+            data = model_dat)
+
+sc_gq<-brm(log(child_inst_rate) ~
+              scale(hsclaim_prop) +
+              year +
+              (1 + year|state),
+            data = model_dat)
+
+jc_police<-lmer(log(police_rate) ~
+              scale(prop_blk) +
+              year +
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+
+jc_teacher<-lmer(log(teacher_rate) ~
+              scale(prop_blk) +
+              year +
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+
+jc_socwork<-lmer(log(socwork_rate) ~
+              scale(prop_blk) +
+              year +
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+
+jc_gq<-lmer(log(child_inst_rate) ~
+              scale(prop_blk) +
+              year +
+              (1 + year|state),
+            data = model_dat,
+            control=lmerControl(optimizer="nloptwrap",
+                                optCtrl=list(maxfun=2e5)))
+```
+
+This all looks fine. How do I want to visualize this?
+
+we'll eventually do trajectory visuals for each regime type - what is the expected trajectory under different regimes, where do we end up in 1930? Think about how to handle to intercepts / slopes. What would a zero mean? pulling out everything not directly in national trend and regime measures. is that what I'm after? I guess I really do just want the regime-specific trend lines, in which case E[rate | regime] should zero out the individual idioscyncracies. it's oversimplified, but that should be ok. Just be super clear on what the iterpretation is on prediction. it's not a hypothetical state, its the mean expectation for the slope of the regime var.
+
+model is
+
+\[\hat{Y} = \alpha + \beta \textrm{Regime} + \delta year + \epsilon\]
+
+Here we are very much interested just in $\beta$, the rest are nuissance parameters. that works. can vis e[state type] under diffferent REGIME sets.
+
+Q: are there places with competing regime sets? CA, WA, others? where we need a multivariate regime model?
+
+```{r}
+new_dat<-data.frame(year =  c(1.3, 1.3, 1.3),
+                    hsclaim_prop = c(0, 0.05, 0.15))
+t<-predict(sc_police,
+           newdata = new_dat,
+           re.form = ~0,
+           type = "link")
+
+t1<-predict(sc_teacher,
+           newdata = new_dat,
+           re.form = ~0,
+           type = "link")
+
+exp(t1)
+
+
+```
