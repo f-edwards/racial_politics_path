@@ -2,6 +2,7 @@ library(tidyverse)
 
 bs<-read_csv("./data/Boarding_Schools.csv")
 
+
 ### create row for each boarding-school-year
 ### using start end-pair
 
@@ -34,6 +35,8 @@ for(i in 1:nrow(bs)){
   }
 
 bs_ts<-bind_rows(dat_out)
+
+write_csv(bs_ts, "doi_school_index.csv")
 
 bs_state_ts<-bs_ts %>% 
   group_by(state, year) %>% 

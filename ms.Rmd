@@ -1,8 +1,8 @@
 ---
 title: "Settler colonial projects explain variation in US state formation in the early 20th c."
-author: "Frank Edwards"
+author: "Frank Edwards and Theresa Rocha Beardall"
 date: "last updated `r Sys.Date()`"
-output: bookdown::html_document2
+output: bookdown::pdf_document2
 ---
 ```{r setup, include = F, message = F, cache = F}
 knitr::opts_chunk$set(message = F, echo = F, warning = F)
@@ -19,7 +19,12 @@ library(units)
 library(sf)
 library(tidybayes)
 library(rstan)
-
+library(knitr)
+library(trackdown)
+# trackdown::trackdown_auth_configure(path = "client_secret_243891325977-kgvbep6m6eb8t2feb8rvu9fneo8d6msa.apps.googleusercontent.com.json")
+# trackdown::update_file(file = "ms.Rmd", 
+#                        hide_code = T,
+#                        rich_text = T)
 options(tigris_use_cache = T)
 options(scipen = 999)
 options(dplyr.print_max = 30)
@@ -27,6 +32,10 @@ map<-map_data("state")
 theme_set(theme_minimal())
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
+# set hook for thousands comma
+knit_hooks$set(inline = function(x) {
+prettyNum(round(x,2), big.mark=",")
+})
 ```
 
 ```{r read, include = F, message = F}
@@ -37,7 +46,6 @@ st<-states(cb = T) %>%
            c("HI", "AK", 
              "PR", "GU", "AS","VI",
              "MP"))
-
 # read data from make_* scripts
 pop<-read_csv("./data/temp_population_ts.csv")%>%
   filter(STUSPS!="AK")
@@ -47,25 +55,25 @@ dist<-read_csv("./data/temp_distribution_ts.csv")%>%
   filter(STUSPS!="AK")
 bs<-read_csv("./data/temp_bs_ts.csv")
 agents<-read_csv("./data/temp_agents.csv")
-
 ## add region to all
 disp<-disp %>%
   left_join(pop %>%
               select(STUSPS, region, division) %>%
   distinct()) %>% 
   left_join(bs) %>% 
-  left_join(agents)
-
+  left_join(agents %>% 
+              select(-state))
 dist<-dist %>%
   left_join(pop %>%
               select(STUSPS, region, division) %>%
   distinct()) %>% 
   left_join(bs) %>% 
-  left_join(agents)
+  left_join(agents %>% 
+              select(-state))
 ```
 
 ```{r run-models, cache = T, include = F, message = F}
-#source("models.R")
+source("models.R")
 ```
 
 # Introduction
@@ -74,29 +82,21 @@ Settler colonialism deeply and unevenly impacts the development of social policy
 
 We examine three deeply intertwined, but spatially and temporally variable, contexts for local policymaking in the Progressive Era (1900 - 1930): the Jim Crow agricultural economy; mass urbanization and industrialization; and the rapid distribution of Native lands to white settlers. Each of these contexts presented different sets of problems to local and national settler policy elites. 
 
-Under sharecropping regimes in the US South, white settler elites sought to create and reproduce brutal and paternalistic regimes of informal and formal social regulation that kept Black workers and their families dependent on and subordinate to white interests. Industrial and social white elites in the North sought to discipline large numbers of European immigrants toward nascent ideals of a white American settler polity oriented toward a narrow gendered division of labor and subordination to the interests of industrial capital. In 1862, the federal government enacted the Morill, Homestead, and Pacific Railroad Acts, each of which provided mechanisms for the rapid distribution of dispossessed Native lands to settlers. White settlers and settler corporate interests flooded recently disposessed Native lands with the promise of free or cheap title, seeking to rapidly develop the settler nation in recently admitted states.
+Under sharecropping regimes in the US South, white settler elites sought to create and reproduce brutal and paternalistic regimes of informal and formal social regulation that kept Black workers and their families dependent on and subordinate to white interests. Industrial and social white elites in the North sought to discipline large numbers of European immigrants toward nascent ideals of a white American settler polity oriented toward a narrow gendered division of labor and subordination to the interests of industrial capital. In 1862, the federal government enacted the Morill, Homestead, and Pacific Railroad Acts, each of which provided mechanisms for the rapid distribution of dispossessed Native lands to settlers. White settlers and settler corporate interests flooded recently dispossessed Native lands with the promise of free or cheap title, seeking to rapidly develop the settler nation in recently admitted states.
 
 We suggest that each of these contexts yielded different trajectories for the formation of US state infrastructure. In the analysis that follows, we leverage data from a range of archival sources to map contexts for early 20th century settler colonization across the US, then build statistical models to evaluate whether these contexts were related to the kinds of capacities that local governments developed for contemporaneous social control and social reproduction. 
 
-Consistent with the historigraphy on the Progressive Era (GORDON, FOX, OTHERS), we find clear relationships between place and policy infrastructure. State formation trajectories varied dramatically across the US, and this variation is closely related to the local salience of distinct racialized settler colonial projects. In places where land speculation and homesteading fueled rapid white settlement, governments and churches hired large numbers of teachers for the intertwined goals of building a white settler polity on the 'frontier' and to continue the coerced assimilation of Indigenous children through a notorious and brutal system of boarding shcools. In places where tenant farming by Black families was common, there was relatively little investment in state bureaucracies. Social control and reproduction instead relied on a coordinated formal and informal system of racial terror that developed alongside a relatively weak set of state social policy institutions.
+The foundations upon which states built out their infrastructure to control, educate, and care for their populations were closely related to regional variation in the political economy of settler colonialism across regions in the US. States developed more or less robust institutions in various domains to address the problems of governance posed by the local projects of settler colonization that both elites and ordinary settlers sought to advance.
 
-The foundations upon which states built out their infrastructure to control, educate, and care for their populations were closely related to regional variation in the political economy of settler colonialism across regions in the US. States developed more or less robust institutions in various domains to address the problems of governance posed by the local projects of settler colonization that both elites and ordinary settlers sought to advance. 
+We focus our attention on three interconnected settler colonial structures and processes that had large impacts on social life in the early 20th century US: 1) the active dispossession and erasure of Native nations and the development of settler enterprises and communities; 2) the exploitation of Black labor for agricultural production and the fortification of an apartheid social order; and 3) the coercive and paternalistic assimilation of recent immigrants from Eastern and Southern Europe into an urban industrial settler colonial polity. We argue that these deeply related, but geographically uneven, processes were related to the development of state capacities to resolve emerging problems of domestic governance in a period of rapid social transformation. In more general terms, we argue that the local salience and configuration of key social structures, like settler colonization, are closely related to local trajectories for state formation and institution building.
 
-We focus our attention on three interconnected settler colonial structures and processes that had large impacts on social life in the early 20th century US: 1) the active dispossession and erasure of Native nations and the development of settler enterprises and communities; 2) the exploitation of Black labor for agricultural production and the fortification of an apartheid social order; and 3) the coercive and paternalistic assimilation of recent immigrants from Eastern and Southern Europe into an urban industrial settler colonial polity. We argue that these deeply related, but geographically uneven, processes were related to the development of state capacities to resolve emerging problems of domestic governance in a period of rapid social transformation. Or, put more directly, that THE LOCAL SALIENCE OF PARTICULAR CONSITUENTS / STRUCTURES IS RELATED TO STATE FORMATION. 
-
-These are three of the projects that were critical to settler colonialism in the early 20th c US. Not the only ones of course! Colonial processes deeply impacted the experiences of a broad range of groups and produced a range of distinct racialized social structures (CITES FOR MEXICO BORDER, MIGRANT WORKERS, CHINESE EXCLUSION, JAPANESE INTERNMENT, PHILLIPINES COLONIZATION, AND OTHERS). *Here, we narrowly focus on three settler colonial projects to illustrate how a macro-comparative approach can be helpful in validating core findings in historical scholarship and in incorporating the insights of critical scholarship on settler colonization and racial capitalism into some of the core methods of political, economic, and comparative historical sociology REVISE.*
+Consistent with the historiography on the Progressive Era (GORDON, FOX, OTHERS), we find clear relationships between place and policy infrastructure. State formation trajectories varied dramatically across the US, and this variation is closely related to the local salience of distinct racialized settler colonial projects. Our work bridges these sometimes disparate historical accounts by showing that the local interests of settler elites were closely tied to the kinds of social and racial projects that the early carceral and welfare states engaged in. 
 
 # Three settler colonial projects in the early 20th c. US
 
-The geographic distribution of the local implementation of the three focal settler projects we focus on is crudely illustrated in Figure \@ref(fig:three-maps). The federal government was most heavily involved in actively redistributing Native lands to settlers in states in the Midwest, Great Plains, Mountain West, and on the West Coast. While Native land disposession was still deeply salient in Eastern states, questions of settler land ownership and the establishment of coherent settler polities had been resolved (albeit incompletely) prior to the late 19th and early 20th centuries. In panel 1, we show the number of acres that had been dispossessed from Native nations and distributed to settlers and settler institutions through two key laws that heavily impacted patterns of colonial settlement in the late 19th and early 20th centuries, the Morill and Homestead acts of 1862. 
+The geographic distribution of the local implementation of the three focal settler projects we focus on is crudely illustrated in Figure \@ref(fig:three-maps). The federal government was most heavily involved in actively redistributing Native lands to settlers in states in the Midwest, Great Plains, Mountain West, and on the West Coast. While Native land dispossession was still deeply salient in Eastern states, questions of settler land ownership and the establishment of coherent settler polities had been resolved (albeit incompletely) prior to the late 19th and early 20th centuries. In panel 1, we show the number of acres that had been dispossessed from Native nations and distributed to settlers and settler institutions through two key laws that heavily impacted patterns of colonial settlement in the late 19th and early 20th centuries, the Morill and Homestead acts of 1862. 
 
-The Jim Crow system of apartheid was developed and becoming deeply entrenched across the states in the US South that had built elaborate settler plantation economies through the exploitation and terrorization of formerly enslaved Black people. As of 1910, the first wave of the Great Migration of African Americans out of the US South was underway, but, as shown in Panel 2 of Figure \@ref(fig:three-maps), the Black population in the US was still heavily concentrated in the US Southeast. 
-
-And the Industrial Revolution, coupled with a wave of crises across Eastern and Southern Europe, created both strong push and pull forces for large populations of immigrants to travel to North America. These immigrants settled across the industrial cities of the Northeast, Midwest, and West coasts. Many of them also joined the waves of white settlers pursuing the opportunity to claim recently dispossessed Native lands in the Central and Western portions of the US. As shown in Panel 3 of Figure \@ref(fig:three-maps), the populations of many states in the Northeast, Midwest, and West Coast were becomingly increasingly urban and foreign born. 
-
-Below, we briefly summarize these three social, economic, and demographic contexts for US state formation in the early 20th century, a period routinely referred to as the 'Progressive Era'. During this period, rapid increases in the complexity, capacity, and scope of domestic governance were occurring at the federal, state, and local levels. Following this brief discussion of historical contexts, we turn to a discussion and analysis of how these varying contexts for settler colonization related to heterogeneity in the kinds of governments that settlers built across places.
-
-```{r three-maps, fig.cap = "Geographic and demographic contexts in 1910 for settler colonial governance"}
+```{r three-maps, fig.cap = "Three focal contexts for settler colonial governance, 1910"}
 ### ADD DISPOSESSION
 p1 <- dist %>% 
   select(STUSPS, year,
@@ -113,7 +113,6 @@ p1 <- dist %>%
   theme(legend.position = "bottom") + 
   labs(fill = "Acres\n(millions)",
        subtitle = "1. Lands patented through\nMorill and Homestead acts")
-
 p2 <- st %>% 
   left_join(pop %>% 
               filter(year == 1910)) %>% 
@@ -124,7 +123,6 @@ p2 <- st %>%
   theme(legend.position = "bottom") + 
   labs(fill = "Proportion",
        subtitle = "2. Black population")
-
 p3 <- st %>% 
   left_join(pop %>% 
               filter(year == 1910)) %>% 
@@ -135,103 +133,87 @@ p3 <- st %>%
   theme(legend.position = "bottom") + 
   labs(fill = "Proportion",
        subtitle = "3. Urban immigrant population")
-
 grid.arrange(p1, p2, p3, nrow = 1)
 ```
 
-## Settling the frontier
+The Jim Crow system of apartheid was developed and became deeply entrenched across the states in the US South that had built elaborate settler plantation economies through the exploitation and terrorization of formerly enslaved Black people. As of 1910, the first wave of the Great Migration of African Americans out of the US South was underway, but, as shown in Panel 2 of Figure \@ref(fig:three-maps), the Black population in the US was still heavily concentrated in the US Southeast. 
 
-OVERVIEW: BUILDING THE SETTLER NATION STATE, ERASING NATIVE NATIONS
+And the Industrial Revolution, coupled with a wave of crises across Europe, created both strong push and pull forces for large populations of immigrants to travel to North America. These immigrants settled across the industrial cities of the Northeast, Midwest, and West coasts. Many of them also joined the waves of white settlers pursuing the opportunity to claim recently dispossessed Native lands in the Central and Western portions of the US. As shown in Panel 3 of Figure \@ref(fig:three-maps), the populations of many states in the Northeast, Midwest, and West Coast were becoming increasingly urban and foreign born. 
 
-Dispossession
+Below, we briefly summarize these three social, economic, and demographic contexts for US state formation in the early 20th century, a period routinely referred to as the 'Progressive Era'. During this period, rapid increases in the complexity, capacity, and scope of domestic governance were occurring at the federal, state, and local levels. Following this brief discussion of historical contexts, we turn to a discussion and analysis of how these varying contexts for settler colonization related to heterogeneity in the kinds of governments that settlers built across places.
 
-Redistribution
+## Building the settler nation-state
 
-THE MORILL, HOMESTEAD AND RR ACTS
+KEY CHARARCTERISTICS: RECENT OR ONGOING DISPOSESSION / REMOVAL, RECENTLY ADMITTED STATES, RELATIVELY SPARSE WHITE POPS. ELIMINATION / REPLACEMENT AS KEY DYNAMIC.
 
-Nation building
+In places where land speculation and homesteading fueled rapid white settlement, governments and churches hired large numbers of teachers for the intertwined goals of building a white settler polity on the 'frontier' and to continue the coerced assimilation of Indigenous children through a notorious and brutal system of boarding schools. 
 
-Forced assimilation
-
-```{r fig.cap = "Land cessions from Native nations claimed by US government 1795 - 1893"}
+```{r cessions-map, fig.cap = "Land cessions from Native nations claimed by US government 1795 - 1893"}
 st<-states(cb = T) %>%
   st_transform(8528) %>% 
   filter(!STUSPS%in%
            c("HI", "AK", 
              "PR", "GU", "AS","VI",
              "MP"))
-
 st_acres<-data.frame(state = st$STUSPS,
                      total_acres_2021 = as.numeric(set_units(st_area(st), "acre")))
-
 ### royce map data
 ## available here: https://data-usfs.hub.arcgis.com/datasets/usfs::tribal-lands-ceded-to-the-united-states-feature-layer/about
 ## and archived here: https://data.nativeland.info/dataset/indian-land-cessions-in-the-united-states-1784-1894/resource/e2b874d5-3c39-4287-bf89-d4ef14b87c83
 cessions<-read_sf("./data/us_forest_cessions_royce/S_USA.TRIBALCEDEDLANDS.shp")
-
 cessions_dat<-read_csv("./data/us_forest_cessions_royce/royce.csv") %>% 
   mutate(time = as_date(TribalCededLandsTableCessDate1),
          year = year(time)) %>% 
   rename(CESSNUM = TribalCededLandsNewCESSNUM) %>% 
   select(CESSNUM, year)
-
 cessions<-cessions %>% 
   left_join(cessions_dat)
-
 cessions<-cessions %>% 
   st_transform(8528)
-
 cessions_diff<-st_difference(st, st_union(cessions))
-
 cessions_diff<-cessions_diff %>% 
   mutate(year = NA)
-
 ### layer state boundaries
 cessions<-st_intersection(cessions, st)
 ### add in settler claimed territories as of 1796
 cessions2 <- cessions %>%  
   bind_rows(cessions_diff %>%  
               mutate(year = NA))
-
 ggplot(cessions2,
        aes(fill = year)) + 
   geom_sf() + 
   theme_void() + 
   scale_fill_viridis_c() + 
   labs(fill = "Year") 
+
 ```
 
-MANY OF THE LOCATIONS THESE FIRST GENERATION SETTLERS WERE GOING TO WERE RECENT DISPOSESSIONS, PARTICULARLY CIVIL WAR ERA. IN 1900, MANY OF THESE LANDS HAD BEEN CLAIMED BY US IN VERY RECENT PAST, WITHIN 50 YEARS. SECOND / THIRD WAVE OF WESTERN SETTLERS. BUILDING THE SETTLER COLONIAL POLITY / NATION STATE AS KEY AGENDAS.
+Figures \@ref(fig:cessions-map) and \@ref(fig:cessions-ts) show the temporal and spatial process of the dispossession of lands from Native Nations by the US Government between 1795 and 1893 (DATA FROM USFS VIA Lib Of Cong). These maps show a clear difference in the timing of land cessions as a function of place. By 1795, the US Government claimed nearly all lands East of the Appalachian Mountains, including large parts of contemporary Kentucky and Tennessee. Land dispossession throughout the South and the Great Lakes regions accelerated quickly during the early 19th century. Throughout the middle of the 19th century, there were large-scale efforts by the federal government and vigilante settlers to dispossess tribal lands in California, the Midwest, Great Plains, and Mountain West. By 1895, nearly all lands in the contemporary lower 48 US states had been claimed by the federal government as US territory. 
 
-
-```{r fig.cap = "Disposession of Native lands in the 19th c."}
-p1<-ggplot(disp,
-       aes(x = year,
-           group = STUSPS)) + 
-  geom_line(aes(y = cumulative_ceded / 1e6)) + 
-  labs(x = "Year",
-       y = "Acres (millions)") + 
-  lims(y = c(0, 150)) + 
-  facet_wrap(region~division) + 
-  labs(subtitle = "1. Total area")
-
-p2<-ggplot(disp,
+```{r cessions-ts, fig.cap = "Cumulative disposession of Native lands in the 19th c. by US region and state as proportion of contemporary state area. Each line represents one state."}
+# p1<-ggplot(disp,
+#        aes(x = year,
+#            group = STUSPS)) + 
+#   geom_line(aes(y = cumulative_ceded / 1e6)) + 
+#   labs(x = "Year",
+#        y = "Acres (millions)") + 
+#   lims(y = c(0, 150)) + 
+#   facet_wrap(region~division) + 
+#   labs(subtitle = "1. Total area")
+p2<-ggplot(disp %>% 
+             filter(year > 1795),
        aes(x = year,
            group = STUSPS)) + 
   geom_line(aes(y = prop_ceded)) + 
   labs(x = "Year",
-       y = "Proportion") + 
-  facet_wrap(region~division) + 
-  labs(subtitle = "2. Proportion of state area")
-
-grid.arrange(p1, p2, ncol = 2)
+       y = "Proportion of state area") + 
+  facet_wrap(region~division) 
+p2
 ```
 
-This shows the timing and spatial distribution in cumulative land disposession by state and region. Panel 1 shows the lands claimed by the US in millions of acres by state from 1796 - 1894. Panel 2 shows these patterns of Native land loss as a proportion of the contemporary areas of US states.  
+The Federal government passed a series of laws in 1862 designed to rapidly redistribute dispossessed Native lands to white settlers and to large corporate and state institutions. The Homestead, Morill, and Pacific Railway Acts of 1862 provided legal frameworks through which expropriated Native lands could be rapidly redistributed to white settlers, large corporations, and Universities. Figure \@ref(fig:hs-morill-map) shows the total number of acres within a state that had been granted to settlers and settler institutions by 1930. More than 10 million acres of Native lands had been redistributed to US land grant Universities at little or no cost for their use or liquidation by 1930 under the Morill act. Under the Homestead Act, more than 255 million acres of Native land had been transferred to settlers by 1930. States in the Midwest, Great Plains, Mountain West, and West Coast saw the highest volumes of land redistribution under these laws. 
 
-Clear regional patterns here. Land loss occurred earlier in states closer to the Atlantic coast. Dispossession accelerated in the North Central and Western regions throughout the middle portion of the 19th c. 
-
-```{r fig.cap = "Lands patented under two legislative mechanisms for the distribution of disposessed Native Lands to settlers, cuulative total 1930"}
+```{r hs-morill-map, fig.cap = "Lands patented under two legislative mechanisms for the redistribution of disposessed Native lands to settlers, cumulative total 1862 - 1930"}
 pdat<-disp %>% 
   select(STUSPS, total_acres_2021) %>% 
   distinct() %>% 
@@ -240,7 +222,6 @@ pdat<-disp %>%
               select(STUSPS, morill_acres_cum, homestead_acres_cum)) %>% 
   replace_na(list(morill_acres_cum = 0, homestead_acres_cum = 0)) %>% 
   left_join(st)
-
 p1<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = morill_acres_cum / 1e6)) + 
@@ -250,7 +231,6 @@ p1<-ggplot(pdat) +
        subtitle = "1. Morill Act") + 
   theme(legend.position = "bottom")
 
-
 p2<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = homestead_acres_cum / 1e6)) + 
@@ -259,42 +239,27 @@ p2<-ggplot(pdat) +
   labs(fill = "Acres (millions)",
        subtitle = "2. Homestead Act") + 
   theme(legend.position = "bottom")
-
 grid.arrange(p1, p2, ncol = 2)
 ```
 
+## Jim Crow 
 
-## Entrenching the exploitation of Black labor and marginalization of Black social and political power
+KEY CHARACTERISTICS: ANTI-BLACK SOCIAL, LEGAL, ECONOMIC REGIME. WHITE SETTLER HOMOGENEITY
 
-Between 1900 and 1930, settler elites in the the US South were busy entrenching Jim Crow and profiting from the deeply exploitative sharecropping system of agricultural production.
+By 1877 efforts to build effective racial democracy through post-Civil War Reconstruction were abandoned by the federal government. By the turn of the century, white elites had legislated and entrenched a regime of brutal racial exploitation and apartheid across the US South (DU BOIS, FONER, FRANKLIN, CURTIN). 
 
-Figure \@ref(fig:jim-crow-maps) shows two key demographic features of this period. In panel 1, we illustrate the entrenchment and ubiquity of the sharecropping system of racially exploitative agrictultural production. In panel 2, we show that, unlike much of the rest of the United States at the time, the white population of the US South was composed overwhelmingly of white settlers who had been born in the United States. 
+DEFINE JIM CROW REGIME. APARTHEID, FORMAL / INFORMAL TERROR REGIME, BLACK LABOR EXPLOITATION, PRIMARILY AG through SHARECROPPING. 
 
-### The sharecropping economy
+READ APD CITATIONS FROM ANN REVIEWS ON JIM CROW, APD, RACISM. DOES APD SUPPORT THE WEAK STATE THESIS? 
 
-DEFINE SYSTEM
+In places where tenant farming by Black families was common, there was relatively little investment in state bureaucracies. Social control and reproduction instead relied on a coordinated formal and informal system of racial terrorism and apartheid that developed alongside a relatively weak set of state social policy institutions (QUADAGNO, KATZNELSON). 
 
-SUMMARIZE LITERATURE
-
-### The white southern polity
-
-SUMMARIZE LIT ON SOUTHERN WHITENESS AND COHERENCE OF WHITE SETTLER POLITY IN US SOUTH
-
-### The early and mid-career of Jim Crow
-
-Racial order, law, and terrorism
-
-ESP THINK ON BUREAUCRACY, INFORMALITY OF SOCIAL CONTROL, COLLABORATION BETWEEN FORMAL AND INFORMAL, VIGILANTISM AND LAW
-
-EDUCATION AND JIM CROW
-
-SOCIAL WORK AND JIM CROW
+Figure \@ref(fig:jim-crow-maps) shows two key demographic features of this period. In panel 1, we illustrate the entrenchment and ubiquity of the sharecropping system of racially exploitative agricultural production. In panel 2, we show that, unlike much of the rest of the United States at the time, the white population of the US South was composed overwhelmingly of white settlers who had been born in the United States. 
 
 ```{r jim-crow-maps, fig.cap = "Black tenant farming and immigrant status of white settlers, 1910"}
 pdat<-st %>% 
   left_join(pop) %>% 
   filter(year == 1910)
-
 p1<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = blk_sharecrop / 1e5)) + 
@@ -303,22 +268,22 @@ p1<-ggplot(pdat) +
   labs(fill = "Population\n(hundred thousands)",
        subtitle = "1. Black population living on tenant farms") + 
   theme(legend.position = "bottom")
-
 p2<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = white_immig / (white_immig + white_non_immig))) + 
   scale_fill_viridis_c() + 
   theme_void() + 
   labs(fill = "Proportion",
-        subtitle = "2. Proportion of white poulation foreign born") + 
+        subtitle = "2. Proportion of white population foreign born") + 
   theme(legend.position = "bottom")
-
 grid.arrange(p1, p2, nrow = 1)
-
 ```
 
+## Regulating and incorporating urban white immigrants 
 
-## Incorporating urban white immigrants into the settler polity and industrial working class
+KEY CHARACTERISTICS: URBANIZATION, INDUSTRIALIZATION, MORAL PANICS OVER IMMIGRANT CULTURAL DIFFERENCE. (TWO ROUTES, REACTIONARY DISCIPLINE, LIBERAL WELFARE PATERNALISM, BOTH ACTIVE). 
+
+In the rapidly urbanizing portions of the Northeast, Midwest, and West Coast, we see heavy investment in what has become the ideal type of the Progressive social state: a robust and professionalizing police force and a broad paternalistic welfare state. These institutions were developed by elites, in part, to regulate urban disorder discursively linked to growing populations of European immigrants and Black migrants from the US South, and with rapidly assimilating these groups into the norms and ideologies of industrial capitalism and the settler nation.
 
 The industrialization of the US Northeast and Midwest during the late 19th and early 20th centuries spurred two related demographic processes: rapid urbanization and mass European immigration. Figure \@ref(fig:immig-maps) displays the distribution of both the urban population and the white immigrant population in the US in 1910. States like New York, Massachusetts, Pennsylvania, Ohio, and Illinois saw dramatic growth in their populations, with much of that growth composed of European immigrants and concentrated in cities like Chicago, Boston, Cleveland, Philadelphia, and New York. 
 
@@ -326,7 +291,6 @@ The industrialization of the US Northeast and Midwest during the late 19th and e
 pdat<-st %>% 
   left_join(pop) %>% 
   filter(year == 1910)
-
 p1<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = white_immig / 1e6)) + 
@@ -335,7 +299,6 @@ p1<-ggplot(pdat) +
   labs(fill = "Population\n(millions)",
        subtitle = "1. White, foreign-born") + 
   theme(legend.position = "bottom")
-
 p2<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = urban_pop / 1e6)) + 
@@ -344,31 +307,26 @@ p2<-ggplot(pdat) +
   labs(fill = "Population\n(millions)",
         subtitle = "2. Urban") + 
   theme(legend.position = "bottom")
-
 grid.arrange(p1, p2, nrow = 1)
 ```
 
-SUMMARIZE DEMOGRAPHY LIT
+Progressive reformers in the Northeast and Midwest were preoccupied with solving a battery of social problems associated with urban life, industrial capitalism, and their perceptions of the culture and behavior of Southern and Eastern European immigrants. 
 
-### The rise of progressive domestic governance in Northern US cities
+HIGH LEVEL SUMMARY OF 1st WAVE WHITE FEMINISM AND SOCIAL WORK VIA GORDON, HARTMAN, OTHERS.
 
-social work
+The emerging fields of sociology, social work, and criminology also sought to apply scientific principles to the organization and practice of policing and corrections. HIGH LEVEL SUMMARY OF PROG ERA POLICING, JUV COURT, PRISON REFORM. LINK TO GOTTSCHALK ON CARCERAL STATE EMERGENCE FROM THESE MOVEMENTS. 
 
-policing
+# Patterns in the development of social policy infrastructure 1900 - 1930
 
-## Patterns in the development of state infrastructure 1900 - 1930
+We define social state capacity as the resources available to governments to direct and intervene in processes of social control and social reproduction (see Cingolani 2013 for a detailed review of theory and measurement). Capacity is a function of both physical infrastructure and human resources available to state actors. We focus on a broad set of social policy systems including education, social welfare, and criminal justice. 
 
-state capacity is hard to measure, but lets try! Here we are going to use employment measures for three roles that came to play critical roles in the developing practices of social welfare and social control: teachers, police, and social workers. 
+We rely on three sets of measures associated with the capacity of states to accomplish social policy goals: 1) employment rates in key street-level social policy positions as a measure of the relative size of bureaucracies and magnitude of human effort available to policy actors, 2) populations housed in institutional group quarters as a measure of the scope of particular kinds of physical infrastructure used by the welfare and carceral systems during the Progressive Era, and 3) counts of operating Indian boarding schools as indicators of physical infrastructure directed at coerced assimilation and erasure of Indigenous peoples. Taken together, these three sets of measures provide a diverse and broad set of insights into spending on the basic infrastructure of social governance during the early 20th century. 
 
-We also think about physical infrastructure for similar sets of institutions. We look at various forms of institutional group quarters: correctional institutions, mental institutions, and institutions for the poor and disabled.
+## Employment in education, policing, and social welfare: 1900 - 1930
 
-Indian Boarding schools are another key piece of physical infrastructure. We look at those too, but I am still waiting on validating some of that data. 
+There was dramatic growth in public sector employment in general (CLEAR FROM FED GOVT EMPLOYMENT, OTHER CITATIONS), and in roles targeted at nation building, social control, and social welfare in particular during the Progressive Era. *These dramatic increases in employment rates were reflected in the increasing complexity and reach of a wide range of public institutions described by a number of historians (GENERAL LIT ON GOVT COMPLEXITY AND ARTICULATION 1900 - 1930).*
 
-### Employment in education, policing, and social welfare: 1900 - 1930
-
-There was dramatic growth in public sector employment in general (CHECK THIS), and in roles targeted at nation building, social control, and social welfare in particular during the Progressive Era. *These dramatic increases in employment rates were reflected in the increasing complexity and reach of a wide range of public institutions described by a number of historians (CITES).*
-
-In Figure \@ref(fig:emp-ts), we display employment rates for the lower 48 US States between 1900 and 1930. Employment of teachers increased from a rate of 5.5 per 1,000 population in 1900 to a rate of 8.6 per 1,000 in 1930, a 56 percent increase. Employment of police doubled between during this period, increasing from a rate of about 0.7 per 1,000 in 1900 to a rate of about 1.4 per 1,000 in 1930. Outside of a few cities in the northeast, social workers were almost never recorded in the Census in 1900 (only 361 recorded nationally in 1900). However, by 1930, the Census recorded about 17,000 social workers nationally, and increase of over 40 fold in terms of employment rates per capita. 
+In Figure \@ref(fig:emp-ts), we display employment rates for the lower 48 US States between 1900 and 1930 in panel 1, and the proportional change in employment rates by category over time in panel 2. Employment of teachers increased from a rate of 5.5 per 1,000 population in 1900 to a rate of 8.6 per 1,000 in 1930, a 56 percent increase. Employment of police doubled during this period, increasing from a rate of about 0.7 per 1,000 in 1900 to a rate of about 1.4 per 1,000 in 1930. Outside of a few cities in the northeast, social workers were almost never recorded in the Census in 1900 (only 361 recorded nationally in 1900). However, by 1930, the Census recorded about 17,000 social workers nationally, an increase of about 30 fold in terms of employment rates per capita. CHECK THESE NUMBERS
 
 ```{r emp-ts, fig.cap = "Employment in three core social policy professions over time, US rates per 1,000 population, 1900 - 1930"}
 emp_pdat<-pop %>% 
@@ -379,26 +337,45 @@ emp_pdat<-pop %>%
             social_workers = sum(socwork)) %>% 
   pivot_longer(cols = Teachers:social_workers) %>% 
   mutate(name = case_when(
-    name == "Teachers"~ "1. Teachers",
-    name == "Police" ~ "2. Police",
-    name == "social_workers" ~ "3. Social Workers")) %>% 
+    name == "Teachers"~ "Teachers",
+    name == "Police" ~ "Police",
+    name == "social_workers" ~ "Social Workers")) %>% 
   mutate(rate = value / pop * 1e3)
-
-emp_pdat  %>% 
-  ggplot(aes(x = year, y = rate)) + 
+### convert to proportional change
+emp_pdat00<-emp_pdat %>% 
+  filter(year == 1900) %>% 
+  rename(rate00 = rate) %>% 
+  select(-year, -value, -pop)
+emp_pdat_prop <- emp_pdat %>% 
+  left_join(emp_pdat00) %>% 
+  mutate(prop_change = rate / rate00) 
+p1<-emp_pdat_prop  %>% 
+  ggplot(aes(x = year, y = rate, color = name)) + 
+  geom_point() + 
   geom_line() + 
-  facet_wrap(~name, scales = "free_y") + 
-  labs(x = "Year", y = "Employment rate")
+  labs(x = "Year", y = "Rate per 1,000",
+       color = "",
+       subtitle = "1. Employment rate") + 
+  theme(legend.position = "bottom")
+p2<-emp_pdat_prop  %>% 
+  ggplot(aes(x = year, y = prop_change, color = name)) + 
+  geom_point() + 
+  geom_line() + 
+  labs(x = "Year", y = "Proportional change (log scale)",
+       color = "",
+       subtitle = "2. Change relative to 1900") + 
+  scale_y_log10() + 
+  theme(legend.position = "bottom")
 
+grid.arrange(p1, p2, nrow = 1)
 ```
 
-However, this expansion of the reach of the state did not occur uniformly across the country. Figure \@ref(fig:emp-maps) displays employment rates per 1,000 population in 1930 for teachers, police, and social workers for each of the lower 48 US States. Employment rates for teachers were lowest-in-the nation in the US South. Employment rates for teachers were highest in a cluster of Great Plains states, like the Dakotas, Wyoming, Nebraska, Iowa, and Kansas. Employment rates for police were at their peak in 1930 in Northeastern, Midwestern, and West Coast states like New York, New Jersey, Massachusetts, Illinois, and California. Police employment rates were relatively lower in places like Arkansas, Missisippi, and North Carolina. The distribution of social workers in 1930 shares some features with the distribution of police: states in the Northeast, Midwest, and West coast like New York, Ohio, Massachusetts, California, and Minnesota had high rates of social worker employment, while states in the Great Plains and South, like Missisippi and South Dakota recorded very few social workers in the 1930 Census. 
+However, this expansion of the reach of state and state-aligned street-level bureaucrats into social life did not occur uniformly across the country. Figure \@ref(fig:emp-maps) displays employment rates per 1,000 population in 1930 for teachers, police, and social workers for each of the lower 48 US States. Employment rates for teachers were lowest-in-the nation in the US South. Employment rates for teachers were highest in a cluster of Great Plains states, like the Dakotas, Wyoming, Nebraska, Iowa, and Kansas. Employment rates for police were at their peak in 1930 in Northeastern, Midwestern, and West Coast states like New York, New Jersey, Massachusetts, Illinois, and California. Police employment rates were relatively lower in places like Arkansas, Mississippi, and North Carolina. The distribution of social workers in 1930 shares some features with the distribution of police: states in the Northeast, Midwest, and West coast like New York, Ohio, Massachusetts, California, and Minnesota had high rates of social worker employment, while states in the Great Plains and South, like Mississippi and South Dakota recorded very few social workers in the 1930 Census. 
 
 ```{r emp-maps, fig.cap = "Employment in three core social policy professions across US states in 1930, rates per 1,000 population"}
 pdat<-st %>% 
   left_join(pop) %>% 
   filter(year == 1930)
-
 p1<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = teachers / tot_pop * 1e3)) + 
@@ -407,7 +384,6 @@ p1<-ggplot(pdat) +
   labs(fill = "Rate",
        subtitle = "1. Teachers") + 
   theme(legend.position = "bottom")
-
 p2<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = police / tot_pop * 1e3)) + 
@@ -416,7 +392,6 @@ p2<-ggplot(pdat) +
   labs(fill = "Rate",
         subtitle = "2. Police") + 
   theme(legend.position = "bottom")
-
 p3<-ggplot(pdat) + 
   geom_sf(aes(geometry = geometry,
               fill = socwork / tot_pop * 1e3)) + 
@@ -425,69 +400,95 @@ p3<-ggplot(pdat) +
   labs(fill = "Rate",
         subtitle = "3. Social Workers") + 
   theme(legend.position = "bottom")
-
 grid.arrange(p1, p2, p3, nrow = 1)
+
+
+  
 ```
 
-### Institutional capacity: prisons, jails, asylums, orphanages and poorhouses
+## Physical infrastructure: prisons, jails, asylums, orphanages and poorhouses
 
-State capacity could also be measured through the ability of states to engage in therapeutic, correctional, or paternalistic confinement. In Figure \@ref(fig:gq-map) we show the distribution of the population housed in institutional group quarters in 1930 across US states. Using the 1930 Census, we display the population housed in prisons in jails in panel 1, the population housed in mental institutions in panel 2, and the population housed in institutions for the poor and/or disabled in figure 3. Using data from the Department of the Interior's ``Federal Indian Boarding School Initiative'' (2022), we display a count of Federal Indian boarding schools operating in 1930 in panel 4. I MAY ADD ENROLLMENT DATA FROM ARCIA REPORTS ONCE WE VALIDATE IT. 
+The capacity of state welfare and carceral systems is also a function of their ability to engage in therapeutic, correctional, or paternalistic confinement of socially problematic populations. In Figure \@ref(fig:gq-map) we show the distribution of the population housed in institutional group quarters in 1930 across US states. Using the 1930 Census, we display the population housed in prisons in jails in panel 1, the population housed in mental institutions in panel 2, and the population housed in institutions for the poor and/or disabled in figure 3. Note that data quality issues in the 1910 Census limit the possibilities for time series analysis. 
 
-Data on institutional group quarters populations are less reliable than employment data for constructing a full 1900 - 1930 Census time series. 
+Panel 3 displays the rate of confinement in institutions for the poor and disabled across US states in 1930. These institutions included poorhouses, settlement homes, orphan asylums, sanitariums, and similar institutions targeted at containing and/or supporting social groups understood to be 'dependent' on state or religious charity support. We find that rates of confinement (likely closely correlated with capacity) were lowest in states in the South, like Arkansas, Alabama, Mississippi and Florida. New England, the mid-Atlantic, and Great Lakes states had relatively high rates of confinement in these kinds of institutions. The East North Central Division, including states like Wisconsin, Illinois, and Ohio had the highest average rate of confinement, at 4.3 per 1,000 persons, while the West South Central division (Arkansas, Louisiana, Oklahoma, and Texas) had the lowest rate of confinement at 1.4 per 1,000 persons in 1930. 
 
-shows Prisons in NE, S, CA. Mental and poverty instutitons mostly in Urban NE, MW, CA
+Panel 2 displays regional patterns in confinement in institutions for the mentally ill across places in 1930. States in the mid Atlantic, New England, and West Coast had the highest rates of confinement, at over 3 per 1,000 on average. In New Hampshire and Massachusetts, confinement rates in 1930  exceeded 4 per 1,000 population. States in the East South Central Division (Mississippi, Alabama, Tennessee, and Kentucky) had the lowest average levels of confinement, at 1.4 per 1,000 persons. Levels of confinement ranged between 2 and 3 on average across the rest of the country. Of note, we observe noinmates in mental institutitons in North Dakota in the 1930 census data.
 
-```{r gq-map, fig.cap = "Institutional group quarters, US 1930"}
+Panel 1 of Figure \@ref{gq-map} shows state-level variation in confinement in correctional group quarters reported in the 1930 US Census. We find average confinement rates to be lowest in the Mid-Atlantic and New England states, at 1.2 per 1,000 population. Confinement rates were highest on average in the West Coast states (2.5 per 1,000). Average rates across the remaining regions varied between 1.3 and 2.0 per 1,000 population. Kansas, home to federal and military prisons in Leavenworth, had the highest incarceration rates in the nation, at 4.5 persons per 1,000 population.
+
+Whereas states in the South tended to have very low levels of confinement in institutions for the poor and disabled and relatively low levels of confinement in mental institutions, they had levels of confinement in correctional institutions that were near national averages. This suggests that Southern policy makers and philanthropic allies systematically invested fewer resources in physical infrastructure targeted at containing or supporting the poor, young, mentally ill, and disabled than did other states, while maintaining and developing prisons and jails at rates similar to the rest of the nation. 
+
+```{r gq-map, fig.cap = "Population confined in prisons, mental institutions, and institutions for the poor and disabled, 1930"}
 pdat<-st %>% 
   left_join(pop) %>% 
   left_join(bs) %>% 
-  filter(year == 1930)
+  filter(year == 1930) %>% 
+  mutate(inst_correctional_pc = inst_correctional / tot_pop * 1e3,
+         inst_mental_pc = inst_mental / tot_pop * 1e3,
+         inst_poor_disabled_pc = inst_poor_disabled / tot_pop * 1e3)
 
-p1<-ggplot(pdat) + 
+
+p1<-ggplot(pdat) +
   geom_sf(aes(geometry = geometry,
-              fill = inst_correctional / 1e3)) + 
-  scale_fill_viridis_c() + 
-  theme_void() + 
-  labs(fill = "Population\n(thousands)",
-       subtitle = "1. Correctional institutions") + 
+              fill = inst_correctional_pc)) +
+  scale_fill_viridis_c() +
+  theme_void() +
+  labs(fill = "Rate",
+       subtitle = "1. Correctional institutions") +
   theme(legend.position = "bottom")
-
-p2<-ggplot(pdat) + 
+p2<-ggplot(pdat) +
   geom_sf(aes(geometry = geometry,
-              fill = inst_mental / 1e3)) + 
-  scale_fill_viridis_c() + 
-  theme_void() + 
-  labs(fill = "Population\n(thousands)",
-        subtitle = "2. Mental institutions") + 
+              fill = inst_mental_pc)) +
+  scale_fill_viridis_c() +
+  theme_void() +
+  labs(fill = "Rate",
+        subtitle = "2. Mental institutions") +
   theme(legend.position = "bottom")
-
-p3<-ggplot(pdat) + 
+p3<-ggplot(pdat) +
   geom_sf(aes(geometry = geometry,
-              fill = inst_poor_disabled / 1e3)) + 
-  scale_fill_viridis_c() + 
-  theme_void() + 
-  labs(fill = "Population\n(thousands)",
-        subtitle = "3. Institutions for the\npoor and disabled") + 
+              fill = inst_poor_disabled_pc)) +
+  scale_fill_viridis_c() +
+  theme_void() +
+  labs(fill = "Rate",
+        subtitle = "3. Institutions for the\npoor and disabled") +
   theme(legend.position = "bottom")
+grid.arrange(p1, p2, p3, nrow = 1)
 
-grid.arrange(p1, p2, p3, nrow = 2)
+# for in-text callouts
+pdat<-st %>% 
+  left_join(pop) %>% 
+  left_join(bs) %>% 
+  filter(year == 1930)%>% 
+  mutate(inst_correctional_pc = inst_correctional/tot_pop * 1e3,
+         inst_mental_pc = inst_mental / tot_pop * 1e3,
+         inst_poor_disabled_pc = inst_poor_disabled / tot_pop * 1e3) 
+
+pdat_callout<-pdat %>% 
+  pivot_longer(cols = inst_correctional_pc:inst_poor_disabled_pc,
+               names_to = "inst_type",
+               values_to = "rate") %>% 
+  group_by(inst_type) %>% 
+  summarize(mean = mean(rate),
+            sd = sd(rate)) %>% 
+  as_tibble() %>% 
+  select(-geometry)
 ```
 
-### Institutional capacity: Indian boarding schools
+## Physical infrastructure: Indian boarding schools
 
-FROM DOI REPORTS
+The Indian boarding school epitomizes the sustained effort by the US government and its allies in settler religious and philanthropic organizations to eliminate Native nations through the coercive assimilation of Indigenous children. Investment in Indian boarding schools peaked during the Assimilation and Allotment era of Federal Indian Law, roughly spanning 1887 - 1934. Notably, these carceral and genocidal institutions represented an early, substantial, and sustained investment by the federal government in education infrastructure. 
 
-Figure \@ref{fig:bsts} displays the number of Indian boarding schools operating annually between 1830 and 1930, with eras of Federal Indian law shaded for reference. The number of boarding schools grew dramatically during the Reservation and Assimilation eras, with most growth occurring between 1870 and 1905. After 1905, a slow decline in the number of operating schools began continued until the end of our focal period, 1930. At the beginning of the Removal Era (1830), there were 18 boarding schools in operation, and 23 were operating at the end of the Removal era (1850). During the subsequent Reservation era (1850 - 1887), the number of operating boarding schools increased from 23 to 173. The number of operating facilities continued to increase during the Assimilation era to a maximum of 242 in 1908, followed by a decline to 174 facilities recorded as operating in 1930, a similar level of facilities operating as had existed at the beginning of the period. 
+Below, we provide a descriptive overview of the geography and timing of boarding school operations. Following initiatives by Secretary of the Interior Deb Haaland and leaders from across Indian Country, the US Department of the Interior has initiated its first comprehensive review of the scope and impacts of the Indian boarding school program. We rely on data produced by the Department of the Interior (NEWLAND 2022) for historical counts of boarding schools in operation by state and year. We pair these data with information coded by our research team from archived annual reports produced by the Commissioner on Indian Affairs between 1890 and 1920 (CITATIONS). 
+
+Figure \@ref(fig:bsts) displays the number of Indian boarding schools operating annually between 1830 and 1930, with eras of Federal Indian law shaded for reference. The number of boarding schools grew dramatically during the Reservation and Assimilation eras, with most growth occurring between 1870 and 1905. After 1905, a slow decline in the number of operating schools began and continued until the end of our focal period, 1930. At the beginning of the Removal Era (1830), there were 18 boarding schools in operation, and 23 were operating at the end of the Removal era (1850). During the subsequent Reservation era (1850 - 1887), the number of operating boarding schools increased from 23 to 173. The number of operating facilities continued to increase during the Assimilation era to a maximum of 242 in 1908, followed by a decline to 174 facilities recorded as operating in 1930, a similar level of facilities operating as had existed at the beginning of the period. 
 
 ```{r bsts, fig.cap = "Indian boarding schools operating annually, US 1830 - 1930"}
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
+cbPalette <- c("#999999", "#E69F00", "#56B4E9")
 t<-bs %>% 
          filter(year<=1930,
                 year>=1830) %>% 
          group_by(year) %>% 
          summarize(boarding_schools = sum(boarding_schools))
-
 ggplot(t) +
        aes(y = boarding_schools,
            x = year) + 
@@ -520,100 +521,42 @@ ggplot(t) +
            x = c(1840, 1860, 1910),
            y = c(60, 90, 160),
            color = cbPalette[1:3],
-           label = c("Removal era", "Reservation era", "Assimilation era")) +
+           label = c("Removal era", "Reservation era", "Assimilation\nand allotment era")) +
   labs(x = "Year", y = "Number of facilities") + 
   scale_x_continuous(breaks = seq(1830, 1930, by = 20),
                      limits = c(1830, 1930)) 
   
 ```
 
-In Figure \@ref{fig:bsts2} we zoom in on our focal period. This uses two sources of data, p1 is DoI, p2 is ARCIA. EXPLAIN THAT THESE ARE LIKELY UNDERCOUNTS AGAIN.
+Figure \@ref(fig:bsmap) shows the geographic distribution of boarding schools in operation when enrollments were at a 1830 - 1930 period maximum (242 facilities documented as operating in 1907). The Department of the Interior has identified Indian Boarding schools operating in 1907 in most regions of the country, with the exception of New England and the Southeast. There were at least 64 boarding school facilities operating in Oklahama in 1907, by far the highest number in the US. There were 8 states with at least 10 facilities in operation in 1907: South Dakota (24), Minnesota (18), Arizona (14), Montana (14), New Mexico (11), Washington (11), Alaska (10, not displayed), and Wisconsin (10). There were at least 5 baording schools in operation in 7 states: California (7), North Dakota (7), Oregon (7), Colorado (5), Hawaii (5, not displayed), Idaho (5), and Kansas (5). States with at least one confirmed facility in operation in 1907 included Nebraska (3), Nevada (3), Pennsylvania (3), Utah (3), Wyoming (3), Iowa (2), Michigan (2), Arkansas (1), Illinois (1), Missouri (1), New York (1), North Carolina (1), and Virginia (1). The data do not record facilities operating in 1907 in the remaining 21 states.
 
-Expansion of program via enrollment even as N facilities is declining and capacity is declining. surprise surprise. 
-
-```{r bsts2, fig.cap = "Boarding schools and recorded student enrollment and capacity, US totals 1890 - 1920"}
-## map out the enrollment and capacity data
+```{r bsmap, fig.cap = "Boarding schools in operation in 1907 by state"}
 bs_ts<-agents %>% 
   left_join(bs) %>% 
   left_join(st)
 
-t<-bs_ts %>% 
-  group_by(year) %>% 
-  summarize(Capacity = sum(boarding_n_acc),
-            Enrollment = sum(students_enroll)) %>% 
-  pivot_longer(cols = Capacity:Enrollment) 
-
-### for in-text callouts
-p1<-ggplot(t, 
-           aes(x = year, y = value, color = name)) + 
-  geom_line() + 
-  labs(x = "Year", y = "Children",
-       color = "",
-       subtitle = "2. Reported capacity and enrollment (ARCIA)")
-
-p2<-ggplot(bs_ts %>% 
-  group_by(year) %>% 
-  summarize(boarding_schools = sum(boarding_schools)),
-           aes(x = year, y = boarding_schools)) + 
-  geom_line() + 
-  labs(x = "Year", y = "Count",
-       subtitle = "1. Facilities operating annually (Dept. of Interior)")
-
-grid.arrange(p2, p1, nrow = 1) 
-```
-
-Figure \@ref{fig:bsmap} shows the geographic distribution of boarding school infrastructure and utilization when enrollments were at a 1890 - 1920 period maximum in 1917. DISCUSS
-
-```{r bsmap, fig.cap = "Boarding schools in operation and reported enrollment and capacity at peak enrollment (1917)"}
-p3<-ggplot(bs_ts %>% 
-         filter(year == 1917),
-       aes(fill = students_enroll / 1e3,
-           geometry = geometry)) + 
-  geom_sf() + 
-  scale_fill_viridis_c() + 
-  theme_void() + 
-  labs(fill = "Children\n(thousands)",
-       subtitle = "3. Reported enrollment") + 
-  theme(legend.position = "bottom")
-
-p2<-ggplot(bs_ts %>% 
-         filter(year == 1917),
-       aes(fill = boarding_n_acc / 1e3,
-           geometry = geometry)) + 
-  geom_sf() + 
-  scale_fill_viridis_c() + 
-  theme_void() + 
-  labs(fill = "Children\n(thousands)",
-       subtitle = "3. Reported capacity") + 
-  theme(legend.position = "bottom")
-
-p1<-ggplot(bs_ts %>% 
-         filter(year == 1917),
+ggplot(bs_ts %>% 
+         filter(year == 1907),
        aes(fill = boarding_schools,
            geometry = geometry)) + 
   geom_sf() + 
-  scale_fill_viridis_c() + 
+  scale_fill_viridis_c(trans = "sqrt") + 
   theme_void() + 
-  labs(fill = "Facilities",
-       subtitle = "1. Boarding schools operating") + 
+  labs(fill = "Facilities\noperating") + 
   theme(legend.position = "bottom")
-
-grid.arrange(p1, p2, p3, nrow = 1)
 ```
 
 # Analytic strategy
 
-The works of settler colonial and racial politics historical and theoretical scholars suggest a straightforward approach to selecting measures that are either a) direct, or b) proxy measures for elite white settler interests given a few assumptions about relationships between population distributions and political processes.
+To explore the relationship between settler colonial political and economic contexts and state formation, we evaluate whether a set of measures of policy infrastructure are related to a set of measures that are related to locally-specific settler colonial policy contexts at the state and year-levels. We conduct exploratory and inferential analysis using data on US states between 1900 and 1930. 
 
-To explore the relationship between settler colonial political and economic contexts and state formation, we evaluate whether a set of policy outcomes are related to a set of demographic and economic predictors at the state and year-levels. We conduct exploratory and inferential analysis using data on US states between 1900 and 1930. 
-
-DESCRIBE THE MEASURES IN GENERAL TERMS HERE
-
-Generally our approach suggests that state formation in a particular place *s* and time *t* is a function of settler interests specific to that time and place. 
+Generally our approach suggests that social policy infrastructure in a particular place *s* and time *t* is a function of settler elite interests specific to that time and place. 
 
 \[E[\textrm{infrastructure}_{st}] = f(\textrm{settler interests}_{st})\]
 
-We proceed by producing and evaluating descriptive data visuals for our operational measures of 'settler interests' and comparing distributions of these measures across states and over time. We then produce and evaluate a similar set of visuals to evaluate the distribution of our 'infrastructure' measures. Finally, we estimate regression models that evaluate the relationships between our measures of infrastructure and settler interests, conditional on time-stable place variation, national temporal trends, and basic characteristics of the population in the state and year.
+We proceed by producing and evaluating descriptive data visuals for our operational measures of settler colonial policy contexts and comparing distributions of these measures across states and over time. We then produce and evaluate a similar set of visuals to evaluate the distribution of our social policy infrastructure measures. Finally, we estimate regression models that evaluate the relationships between our measures of infrastructure and settler interests, conditional on time-stable place variation, national temporal trends, and basic characteristics of the population in the state and year.
+
+A replication package is available at github.com/f-edwards/racial_politics_path
 
 ## Data
 
@@ -621,27 +564,31 @@ All measures on features of the US population are derived from the 1900, 1910, 1
 
 State-year employment measures are computed from the 1900 - 1930 Census. A census respondent is counted as a police employee if their code for the IPUMS variable OCC1950 is equal to one of {771 'Marshals and constables', 773 'Policemen and detectives', 782 'Sheriffs and bailiffs'}; is counted as a social worker if OCC1950 is coded 079 'Social and welfare worker'; and counted as a teacher if OCC1950 is equal to 093 'Teachers (n.e.c)', which excludes music and art teachers but includes other primary and secondary teachers. 
 
-We also compute measures of populations in institutional group quarters, but rely on a slightly different set of samples. The 1910 census did not collect information on group quarters type. We rely on the 1900, 1920, and 1930 100% samples for the group quarters population by type, and the 1910 1.4% sample which contains IPUMS imputations for group quarters type. From these samples, we derive state-year measures of the population housed in correctional instiuttions, the population housed in mental institutions, and the population housed in institutions for the elderly, handicapped, and poor. 
+We also compute measures of populations in institutional group quarters, but rely on a slightly different set of samples. The 1910 census did not collect information on group quarters type. We rely on the 1900, 1920, and 1930 100% samples for the group quarters population by type, and the 1910 1.4% sample which contains IPUMS imputations for group quarters type. From these samples, we derive state-year measures of the population housed in correctional institutions, the population housed in mental institutions, and the population housed in institutions for the elderly, handicapped, and poor. 
 
-Indigenous land dispossession over time is measured using shape files created by the US Forest Service from a set of 1899 maps detailing the boundaries of land cessions claimed by the US government from Native nations through treaties or acts of Congress (CITE). The distribution of Native lands to settlers is measured through data on the implementation of the Homestead Act and Morill Act of 1862. We use data on parcels of land transferred to land-grant universities under the Morill Act as documented by Robert Lee an High Country News as part of their 'Land Grab University' project. These data are compiled from land patents archived by the Bureau of Land Management and represent the most extensive archive of such land transfers currently available. Data on parcels of land distributed to settlers through the Homestead Act are obtained from  the report ``Homesteads,'' by the Bureau of Land Management of the U.S. Department of the Interior, 1962, and digitized and distributed by Edwards, Friefeld and and Wingo 2017. For both Homestead and Morill act data, we measure cumulative acres parceled since 1862 under each act within the state by year. 
+Indigenous land dispossession over time is measured using shape files created by the US Forest Service from a set of 1899 maps detailing the boundaries of land cessions claimed by the US government from Native nations through treaties or acts of Congress (CITE). The distribution of Native lands to settlers is measured through data on the implementation of the Homestead Act and Morrill Act of 1862. We use data on parcels of land transferred to land-grant universities under the Morrill Act as documented by Robert Lee and High Country News as part of their 'Land Grab University' project. These data are compiled from land patents archived by the Bureau of Land Management and represent the most extensive archive of such land transfers currently available. Data on parcels of land distributed to settlers through the Homestead Act are obtained from  the report ``Homesteads,'' by the Bureau of Land Management of the U.S. Department of the Interior, 1962, and digitized and distributed by Edwards, Friefeld and and Wingo 2017. For both Homestead and Morill act data, we measure cumulative acres parceled since 1862 under each act within the state by year. 
 
 ## A note on settler colonial geography
 
-geography itself endogenous to settler colonization, this is tricky! we are trying to understand the emergence of the state as bureaucratic entity in this period, so it makes sense to do this, but it is messy! we don't want to imply a teleological reading here. borders are unstable and contested.
+geography itself is endogenous to settler colonization, this is tricky! We are trying to understand the emergence of the settler state as a bureaucratic entity in this period, so it makes sense to do this, but it is messy! we don't want to imply a teleological reading here. borders are unstable and contested. Here we are thinking about the human and physical infrastructures of the US carceral and welfare states, so we focus our attention on those spatial boundaries, while recognizing that the process of state formation is closely tied up with defining and reinforcing those borders while seeking to erase others. 
 
-## statistical methods and models
+## Statistical methods and models
 
-Nearly of our 'infrastructure' outcomes are measured as counts of persons. As such, we rely on Negative Binomial likelihoods that can flexibly handle over-dispersed count outcomes to model these employment and population processes. For facility counts (boarding schools), we employ a similar model that removes population offsets from the specification. 
+We develop a series of regression models to explore the conditional relationships between outcomes measuring the capacity of settler state governments and predictors measuring the contexts for three focal settler colonial projects. These state-year models evaluate how three regionally specific settler projects -- Jim Crow, Native land redistribution, and white immigrant assimilation -- related to patterns in the development of core state infrastructure and capacity during a period of rapid increases in state capacity in the US. 
 
-DISCUSSIONS OF MODEL SELECTION IN APPX
+Our first set of models (see equation XXX) predict infrastructure outcomes for each decennial Census year between 1900 and 1930, and include time-stable state-level random intercepts, a non-linear time component (a national decade-specific intercept), and parameters for per capita rates of Black tenant farming, per capita rates of white urban immigrants, and cumulative acreage redistributed to settlers under the Homestead and Morill acts. We use Bayesian Hamiltonian Monte Carlo methods to estimate all models with weakly informative priors on all model parameters. This approach adjusts for national time trends (secular increases in employment across places), as well as adjusting for idiosyncratic differences across states. 
 
-Model 1. is
+We discuss our process for model selection in detail in the appendix.
+
+Most of our infrastructure outcomes are measured as counts of persons. As such, we rely on Negative Binomial likelihoods that can flexibly handle over-dispersed count outcomes to model these employment and population processes. The population offset term on the left-hand side of equation XXXX allows us to adjust outcomes and estimated relationships for the size of state populations (as per capita rates). 
+
+*Equation 1: Model for count outcomes*
 
 \[ y_{st} \sim \textrm{NegBin}(\lambda, \alpha)\]
 
 \[ \lambda = \textrm{E}[y_{st}] \]
 
-\[ \log \left( \frac{\textrm{E}[y_{st}]}{\textrm{population}_{st}} \right) = \gamma_s + \beta_{0t} + \beta_1 \frac{\textrm{Black tenant farmers}_{st}}{\textrm{population}_{st}} + \beta_2 \frac{\textrm{White urban immigrants}_{st}}{\textrm{population}_{st}} + \beta_3 \textrm{Morill and Homestead acres}_{st} + \beta_4 \log(\textrm{child population}_{st}) \]
+\[ \log \left( \frac{\textrm{E}[y_{st}]}{\textrm{population}_{st}} \right) = \gamma_s + \beta_{0t} + \beta_1 \frac{\textrm{Black tenant farmers}_{st}}{\textrm{population}_{st}} + \beta_2 \frac{\textrm{White urban immigrants}_{st}}{\textrm{population}_{st}} + \beta_3 \textrm{Morill and Homestead acres}_{st} \]
 
 \[\gamma_s \sim N(0, \sigma^2_\gamma)\]
 
@@ -651,58 +598,691 @@ With weakly informative priors
 \[\sigma \sim t(3, 0, 2.5)\]
 \[\alpha \sim \textrm{Gamma}(0.01, 0.01)\]
 
-Model 2 (for zero inflated outcomes) is
+We also model the presence and number of Indian boarding schools in each state as a focal measure of state infrastructure in the Progressive era. Unlike other outcomes in our study, there are a substantial number of states that did not have Indian boarding schools during this period. We treat the presence of boarding schools as a zero-inflated process, and use a two-stage model to evaluate their distribution. One component of the model estimates the probability of having at least one boarding school during the focal period (a binary outcome). This binary measure of boarding schools is constant over the period 1900 - 1930 at the state-level, so we estimate this model using data only for the first observation in the period, 1900. The second component of the model estimates the count of boarding schools present in a state-year, conditional on there being at least one boarding school in the state, following equation 1, with the removal of the population offset term. 
 
-XXXXX
+*Model 2 (for zero inflated outcomes) is*
+
+\[ y_{s} > 0 \sim \textrm{Bernoulli}\left(\theta\right) \]
+\[ \textrm{logit} \left(\theta_s\right) =  \beta_{0t} + \beta_1 \frac{\textrm{Black tenant farmers}_{s}}{\textrm{population}_{s}} + \beta_2 \frac{\textrm{White urban immigrants}_{s}}{\textrm{population}_{s}} + \beta_3 \textrm{Morill and Homestead acres}_{s} \]
+\[\beta \sim N(0, 20)\]
+
+Across all models, we re-scale predictors to a mean-centered standard deviation scale (*z* scores) to improve model convergence and parameter interpretability in a context of widely differing scales across measures. 
 
 # Findings
 
 We suggest that regionally-specific political contexts, driven by spatially and temporally varying interests of white settler elites, caused variation in trajectories of welfare state formation across US states. In this study, we explore how three settler colonial political projects mattered for the emergence of the US welfare state: the economic exploitation and social exclusion of Black people from the settler polity, the consolidation of settler political, social, and cultural claims on Indigenous territories, and the incorporation of urban European immigrants into the settler polity. 
 
+There are clear relationships between the geography of settler colonial projects and the local scale of welfare and carceral state capacity in the early 20th century US. In Figure \@ref(fig:emp-m-vis) we display our estimates of the spatial and temporal relationships between employment in key social policy professions and settler colonial project indicators. In Figure \@ref(fig:gq-m-vis) we show our estimates for the relationship between some of the physical infrastructure of the carceral and welfare state and settler colonial projects. And in Figure \@ref(fig:bs-m-mvs) we show our estimates of the spatial and temporal relationships between the locations of Federal Indian boarding schools and these measures of settler colonial project timing and location. 
+
+In states where Native lands were being actively redistributed to settlers, there were higher levels of employment of teachers, and relatively lower levels of employment of police and social workers. These states had per capita rates of detention in correctional facilities, mental institutions, and institutions for the poor and disabled that were near the national average. They were dramatically more likely than other states to build and maintain Indian boarding schools. 
+
+In states where there were large numbers of white immigrants residing in cities, teacher employment was around the national average, but police and social worker employment were dramatically higher than in other states. Rates of detention in correctional institutions were similar to all other states at the time, but the rate of detention in institutions for the mentally ill, poor, or disabled were much higher in these states than in other parts of the country. And while there were notable examples, such as the notorious Carlisle school in Pennsylvania, states with large urban white immigrant populations did not routinely build and maintain Indian boarding schools
+
+In states with large numbers of Black tenant farmers between 1900 and 1930, there was much lower employment of teachers, police officers, and social workers than in other US states. Despite these low levels of employment in front-line social policy positions, however, these states had similar rates of incarceration in correctional institutions compared to other states. They had relatively lower levels of detention in institutions for the mentally ill, the poor, or the disabled. These states were also the least likely to build and maintain Indian boarding schools when compared with all other US states. 
+
+PUNCHY HIGH LEVEL SUMMARY. WHAT DO WE CALL THIS? FRONTIER DISPOSSESSION + NATION BUILDING, URBAN REGULATION + IMMIG INCORPORATION, JIM CROW HYBRID FORMAL+INFORMAL RACIAL TERROR + MALIGN NEGLECT. 
+
 ## Employment models
 
+As shown in Figure \@ref(fig:emp-ts), there was a dramatic increase in the number of people employed as teachers between 1900, when there were `r emp_pdat %>% filter(year==1900, name=="Teachers") %>% select(value) %>% slice(1)` teachers recorded in the US Census, and 1930, when there was a reported total of `r emp_pdat %>% filter(year==1930, name=="Teachers") %>% select(value) %>% slice(1)` teachers. This amounts to a `r round((emp_pdat_prop %>% filter(year==1930, name=="Teachers") %>% select(prop_change) %>% slice(1)-1)*100)` percent growth in the per capita rate of teacher employment over a 30 year period. We model state-year teacher employment rates using the model described in Equation 1, and display the posterior distributions of focal parameters in Figure \@ref(fig:emp-m-vis) to evaluate how the geography of settler colonial projects related to patterns of teacher employment across places and over time. More details on model parameters and diagnostics are provided in Appendix Table (XXXXXX, full regression table).
 
-```{r}
-# # ### extract posterior draws for b1, b2, b3, set up for plotting
-# # pdat<-teachers_m1_bayes %>% 
-# #   gather_draws(c(b_scaleIblk_sharecropDtot_pop,       
-# #                  b_scaleIurban_immig_popDtot_pop,             
-# #                  b_scalemorill_acres_cumPhomestead_acres_cum)) %>% 
-# #   mutate(model = "1. Teachers") %>% 
-# #   bind_rows(
-# #     cops_m1_bayes %>% 
-# #       gather_draws(c(b_scaleIblk_sharecropDtot_pop,       
-# #                      b_scaleIurban_immig_popDtot_pop,             
-# #                      b_scalemorill_acres_cumPhomestead_acres_cum)) %>% 
-# #       mutate(model = "2. Police")) %>% 
-# #   bind_rows(
-# #     socwork_m1_bayes %>% 
-# #       gather_draws(c(b_scaleIblk_sharecropDtot_pop,       
-# #                      b_scaleIurban_immig_popDtot_pop,             
-# #                      b_scalemorill_acres_cumPhomestead_acres_cum)) %>%
-# #       mutate(model = "3. Social workers")) %>% 
-# #   mutate(.variable = case_when(
-# #     .variable == "b_scaleIblk_sharecropDtot_pop" ~ 
-# #       "β1: Black tenant\nfarmers per capita",
-# #     .variable == "b_scaleIurban_immig_popDtot_pop" ~ 
-# #       "β2: Urban white\nimmigrants\nper capita",
-# #     .variable == "b_scalemorill_acres_cumPhomestead_acres_cum" ~ 
-# #       "β3: Cumulative \nMorill +\nHomestead acres"))
-# 
-# 
-# ggplot(pdat,
-#        aes(x = .value, 
-#            y = .variable)) +
-#   stat_halfeye() + 
-#   geom_vline(aes(xintercept = 0), lty = 2) + 
-#   labs(x = "Estimate",
-#        y = "") + 
-#   facet_wrap(~model) + 
-#   theme_bw()
+Panel 1 in Figure \@ref(fig:emp-m-vis) shows the distributions of the posterior parameter estimates of our relationship between three focal settler colonial contexts and teacher employment. Conditional on our data and model specifications, we find that states with higher levels of settler land redistribution under the Homestead and Morill acts employed more teachers per capita than did other states between 1900 and 1930. We find that states with higher levels of Black tenant farming employed fewer teachers per capita than did other states. States with high urban white immigrant populations employed teachers at rates near the national average. 
+
+Panel 2 shows the distributions of focal posterior parameter estimates from our models of police employment. We find that states with higher levels of settler land distribution through the Morill and Homestead acts had lower levels of police employment on average. States with large urban white immigrant populations had significantly higher levels of police employment than did other states during this period. And states with large numbers of Black tenant farmers tended to have lower levels of police employment. Despite relatively low levels of police employment in many Southern states, there were incredible levels of both formal and informal white supremacist violence during this period (CITATIONS).
+
+The distribution of social work employment across states follows the same general pattern as police employment. In Panel 3, we show that states with large white urban immigrant populations had much higher levels of social worker employment than did other US states between 1900 and 1930. States with high levels of Black tenant farming and settler land redistribution tended to have slightly lower levels of social worker employment than other states, but these expected employment levels are not statistically significant from zero at conventional thresholds. 
+
+```{r emp-m-vis, fig.cap = "Posterior distributions of focal model parameters by employment type, US States 1900 - 1930. Densities, expected values, and credible intervals, 0.5, 0.95)"}
+#### extract posterior draws for b1, b2, b3, set up for plotting
+pdat<-teachers_m1 %>%
+  gather_draws(c(b_scaleblk_sharecrop_pc,
+                 b_scaleurban_immig_pc,
+                 b_scalehomestead_plus_morill)) %>%
+  mutate(model = "1. Teachers") %>%
+  bind_rows(
+    cops_m1 %>%
+      gather_draws(c(b_scaleblk_sharecrop_pc,
+                     b_scaleurban_immig_pc,
+                     b_scalehomestead_plus_morill)) %>%
+      mutate(model = "2. Police")) %>%
+  bind_rows(
+    socwork_m1 %>%
+      gather_draws(c(b_scaleblk_sharecrop_pc,
+                     b_scaleurban_immig_pc,
+                     b_scalehomestead_plus_morill)) %>%
+      mutate(model = "3. Social workers")) %>%
+  mutate(.variable = case_when(
+    .variable == "b_scaleblk_sharecrop_pc" ~
+      "B1: Black tenant\nfarmers per capita",
+    .variable == "b_scaleurban_immig_pc" ~
+      "B2: Urban white\nimmigrants\nper capita",
+    .variable == "b_scalehomestead_plus_morill" ~
+      "B3: Cumulative \nMorill +\nHomestead acres"))
+ggplot(pdat,
+       aes(x = .value,
+           y = .variable)) +
+  stat_halfeye() +
+  geom_vline(aes(xintercept = 0), lty = 2) +
+  labs(x = "Estimate",
+       y = "") +
+  facet_wrap(~model) +
+  theme_bw()
 ```
+
+We display the temporal components of these models, expected values for employment rates conditional on the range of observed settler colonial contexts, and the observed bivariate relationships between employment rates and context measures in Figures \@ref(fig:postpred-teachers), \@ref(fig:postpred-police), and \@ref(fig:postpred-socwork). As described in Figure \@~ref(fig:emp-ts), there were dramatic increases in the employment of teachers, social workers, and police nationally between 1900 and 1930. But these national trends obscure significant sub-national variation in employment rates and growth trajectories. 
+
+Figure \@ref(fig:postpred-teachers) shows that while teacher employment grew substantially across all states between 1900 and 1930, states with high levels of Black tenant farming tended to have much lower levels of teacher employment across the full time period than did states that did not have high levels of Black tenant farming. Models suggest that the expected employment rate for teachers in states with high levels of Black tenant farming (25 percent of the population, similar to South Carolina in 1900 - 1930) would be about 3.4 with a 90 percent credible interval of [3.0, 3.8] per 1,000 population in 1900; about 3.9 [3.5, 4.4] per 1,000 persons in 1910; about 4.5 [4.0, 5.0] per 1,000 in 1920, and about 5.3 [4.7, 6.0] teachers per 1,000 in 1930. 
+
+By contrast, states with high levels of settler land redistribution through the Morill and Homestead acts to have much higher levels of teacher employment than Jim Crow labor regime states. In 1900, a state with a high level of acreage redistributed to settlers in the recent past (10 million acres, similar to Minnesota, Nebraska, or Kansas) is expected to have had a teacher employment rate of about 6.7 [6.3, 7.2] per 1,000 population. In 1910, a state with high levels of Homestead and Morill act land distributions (13 million acres, similar to Kansas, North Dakota, and Oklahoma) is expected to have employed about 8.1 [7.5, 8.8] teachers per 1,000 persons. By 1930, states with high levels of contemporary settler land redistribution (about 20 million acres, similar to Colorado, North Dakota and South Dakota) had highest-in-the-nation levels of teacher employment, with expected rates of about 12.3 [11.3, 13.5] teachers per 1,000 persons. 
+
+For each decade we evaluate, our models expect no meaningful differences in teacher employment across states with high and low levels of white urban immigrant populations, conditional on low levels of active settler land redistribution and low levels of Black tenant farming. There are, of course, high levels of expected increases in teacher employment over time, ranging from a low of 5.7 [5.2, 6.1] in 1900 to a high of 8.9 [8.1, 9.6] in 1930. 
+
+```{r postpred-teachers, fig.cap = "Estimated and observed relationships between teacher edfmployment rates and focal settler colonial context variables, US States 1900 - 1930. Posterior prediction for expected teacher employment rate as dotted line (mean), with credible intervals shaded (0.5, 0.8, 0.95). Dots and text indicate observed values."}
+### blk_sharecrop
+pred_dat<-expand_grid(tot_pop = 1e6,
+            homestead_plus_morill = 0,
+            urban_immig_pc = 0,
+            blk_sharecrop_pc = seq(0,max(mdat$blk_sharecrop_pc), length.out = 100),
+            year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(teachers_m1,
+                  re_formula = NA)
+### credible intervals for text callouts
+t<-pred_dat %>% 
+  filter(blk_sharecrop_pc < 0.251, blk_sharecrop_pc > 0.250) %>% 
+  group_by(year) %>% 
+  summarize(
+    med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3)
+p1<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = blk_sharecrop_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) + 
+  geom_point(data = mdat,
+             aes(y = teachers / tot_pop * 1e3,
+                 x = blk_sharecrop_pc),
+             size = 1, alpha = 0.5) +
+  # geom_text(data = mdat %>% 
+  #             filter(blk_sharecrop_pc > 0.03),
+  #           aes(y = teachers / tot_pop * 1e3 + 0.5,
+  #               x = blk_sharecrop_pc,
+  #               label = STUSPS),
+  #           alpha = 0.75,
+  #           size = 3) + 
+  facet_wrap(~year, nrow = 1) + 
+  guides(fill = "none") +
+  theme_bw() +
+  coord_cartesian(ylim = c(2.7,16.8)) + 
+  labs(y = "",
+       x = "Proportion of population Black tenant farmers")
+### homestead+morill
+pred_dat<-expand_grid(tot_pop = 1e6,
+                      homestead_plus_morill = seq(0,
+                                                  max(mdat$homestead_plus_morill),
+                                                  length.out = 100),
+                      urban_immig_pc = 0,
+                      blk_sharecrop_pc = 0,
+                      year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(teachers_m1,
+                  re_formula = NA)
+### text callouts
+t<-pred_dat %>% 
+  filter(homestead_plus_morill>20e6, homestead_plus_morill < 20.2e6) %>% 
+  group_by(year) %>% 
+  summarize(
+    med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3)
+p2<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = homestead_plus_morill)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) + 
+  geom_point(data = mdat,
+             aes(y = teachers / tot_pop * 1e3,
+                 x = homestead_plus_morill),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(homestead_plus_morill > 2e5),
+  #           aes(y = teachers / tot_pop * 1e3 + 0.5,
+  #               x = homestead_plus_morill,
+  #               label = STUSPS),
+  #           alpha = 0.75, size = 3) + 
+  guides(fill = "none") +
+  labs(x = "Homestead Acres Plus Morill Acres (millions) Distributed to Settlers",
+       y = "Teachers per 1,000 population") + 
+  facet_wrap(~year, nrow = 1) + 
+  coord_cartesian(ylim = c(2.7,16.8)) + 
+  scale_x_continuous(labels = function(x)x / 1e6) + 
+  theme_bw() 
+### urban immig
+pred_dat<-expand_grid(tot_pop = 1e6,
+                      homestead_plus_morill = 0,
+                      urban_immig_pc = seq(0,
+                                           max(mdat$urban_immig_pc),
+                                           length.out = 100),
+                      blk_sharecrop_pc = 0,
+                      year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(teachers_m1,
+                  re_formula = NA)
+t<-pred_dat %>% 
+  group_by(year) %>% 
+  summarize(
+    med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3)
+p3<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = urban_immig_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) + 
+  geom_point(data = mdat,
+             aes(y = teachers / tot_pop * 1e3,
+                 x = urban_immig_pc),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(urban_immig_pc > 0.02),
+  #           aes(y = teachers / tot_pop * 1e3 + 0.5,
+  #               x = urban_immig_pc,
+  #               label = STUSPS),
+            # alpha = 0.75, size = 3) + 
+  guides(fill = "none") +
+  labs(x = "Proportion of population urban white immigrants",
+       y = "") + 
+  facet_wrap(~year, nrow = 1) + 
+  coord_cartesian(ylim = c(2.7,16.8)) + 
+  theme_bw() 
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+We observe clear differences in police employment across settler colonial contexts. In Figure \@ref(fig:postpred-police) we show posterior expected values for police employment rates across the observed range of settler colonial contexts over time. Rates of police employment were relatively low in the Jim Crow South. Our models suggest that in a state with 25 percent of the population documented as Black tenant farmers in the Census, an expected police employment rate of 0.31 [0.26, 0.38] per 1,000 persons in 1900, a rate of 0.37 [0.30, 0.44] in 1910, a rate of 0.41 [0.34, 0.49] in 1920, and a rate of about 0.63 [0.52, 0.77] police employed per 1,000 persons in 1930. 
+
+Employment rates of police officers were dramatically higher in states with large white urban immigrant populations. In states with 25 percent of their population recorded as white immigrants living in urban Census tracts (similar to New Jersey, New York, Massachusetts, and Rhode Island), our models expected states to have had about 1.2 [0.99, 1.4] police employed per 1,000 population in 1900, 1.4 [1.2, 1.6] per 1,000 population in 1910, 1.5 [1.3, 1.8] in 1920, and 2.3 [2.0, 2.8] police per 1,000 population in 1930. 
+
+Police were employed at slightly lower levels in states with high levels of recent settler land distributions than in other states. In 1930, our models expect a state with no recent settler land distributions to have had an average of about 1.0 [0.90, 1.1] police per 1,000 population, compared to an expected police employment rate of 0.7 [0.6, 0.8] per 1,000 in a state with very high levels of recent settler land redistribution. 
+
+```{r postpred-police, fig.cap = "Estimated and observed relationships between police employment rates and focal settler colonial context variables, US States 1900 - 1930. Posterior prediction for expected police employment rate as dotted line (mean), with credible intervals shaded (0.5, 0.8, 0.95). Dots and text indicate observed values."}
+### blk_sharecrop
+pred_dat<-expand_grid(tot_pop = 1e6,
+            homestead_plus_morill = 0,
+            urban_immig_pc = 0,
+            blk_sharecrop_pc = seq(0,max(mdat$blk_sharecrop_pc), length.out = 100),
+            year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(cops_m1,
+                  re_formula = NA)
+### credible intervals for text callouts
+t<-pred_dat %>% 
+  filter(blk_sharecrop_pc < 0.251, blk_sharecrop_pc > 0.250) %>% 
+  group_by(year) %>% 
+  summarize(
+    med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3)
+p1<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = blk_sharecrop_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6)  + 
+  geom_point(data = mdat,
+             aes(y = police / tot_pop * 1e3,
+                 x = blk_sharecrop_pc),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(blk_sharecrop_pc > 0.03),
+  #           aes(y = police / tot_pop * 1e3 + 0.1,
+  #               x = blk_sharecrop_pc,
+  #               label = STUSPS),
+  #           alpha = 0.75, size = 3) + 
+  facet_wrap(~year, nrow = 1) + 
+  guides(fill = "none") +
+  theme_bw() +
+  coord_cartesian(ylim = c(0,3)) + 
+  labs(y = "",
+       x = "Proportion of population Black tenant farmers")
+### homestead+morill
+pred_dat<-expand_grid(tot_pop = 1e6,
+                      homestead_plus_morill = seq(0,
+                                                  max(mdat$homestead_plus_morill),
+                                                  length.out = 100),
+                      urban_immig_pc = 0,
+                      blk_sharecrop_pc = 0,
+                      year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(cops_m1,
+                  re_formula = NA)
+t<-pred_dat %>% 
+  group_by(year, homestead_plus_morill) %>% 
+  summarize(med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3) %>% 
+  filter(year == 1930)
+# t[1,]
+# t[90,]
+p2<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = homestead_plus_morill)) +
+ stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) +
+  geom_point(data = mdat,
+             aes(y = police / tot_pop * 1e3,
+                 x = homestead_plus_morill),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(homestead_plus_morill > 3e6),
+  #           aes(y = police / tot_pop * 1e3 + 0.1,
+  #               x = homestead_plus_morill,
+  #               label = STUSPS),
+  #           alpha = 0.75, size = 3) + 
+  guides(fill = "none") +
+  labs(x = "Homestead Acres Plus Morill Acres (millions) Distributed to Settlers",
+       y = "Police per 1,000 population") + 
+  facet_wrap(~year, nrow = 1) + 
+  coord_cartesian(ylim = c(0,3)) + 
+  scale_x_continuous(labels = function(x)x / 1e6) + 
+  theme_bw() 
+### urban immig
+pred_dat<-expand_grid(tot_pop = 1e6,
+                      homestead_plus_morill = 0,
+                      urban_immig_pc = seq(0,
+                                           max(mdat$urban_immig_pc),
+                                           length.out = 100),
+                      blk_sharecrop_pc = 0,
+                      year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(cops_m1,
+                  re_formula = NA)
+### text call out
+t<-pred_dat %>% 
+  filter(urban_immig_pc > 0.25, urban_immig_pc < 0.255) %>% 
+  group_by(year) %>% 
+  summarize(
+    med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3)
+p3<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = urban_immig_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) +
+  geom_point(data = mdat,
+             aes(y = police / tot_pop * 1e3,
+                 x = urban_immig_pc),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(urban_immig_pc > 0.03),
+  #           aes(y = police / tot_pop * 1e3 + 0.1,
+  #               x = urban_immig_pc,
+  #               label = STUSPS),
+  #           alpha = 0.75, size = 3) + 
+  guides(fill = "none") +
+  labs(x = "Proportion of population urban white immigrants",
+       y = "") + 
+  facet_wrap(~year, nrow = 1) + 
+  coord_cartesian(ylim = c(0,3)) + 
+  theme_bw() 
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+Social work employment dramatically increased from near-zero levels in 1900 to becoming relatively common across all US states by 1930. Again, however, these levels of employment and trajectories varied substantially across contexts. For example, in a state with a large population of Black tenant farmers, the model expectations of social worker employment increased from 1.1 [0.7, 1.8] per million population in 1900 to 3.7 [2.6, 5.6] per 100,000 population in 1930. Expected employment for social workers followed similar trends in states with high levels of recent settler land redistribution, starting near zero in 1900 and rising to around 4 social workers per 100,000 by 1930 in a state with high levels of contemporary settler land redistribution. 
+
+By contrast, social work employment started at relatively high levels in 1900 and rose dramatically in states with large urban immigrant populations. Our models expect a state with a large urban immigrant population (25 percent of population) to have had about 9.9 [7.0, 14.3] social workers per million population in 1900. This employment rate increased dramatically during this period. Median expected employment rates for social workers were 3.3 per 100,000 in 1910, 1.5 per 10,000 in 1920, and 3.2 per 10,000 in 1930. This represented a 32 fold increase between 1900 and 1930. Our models expect per capita social work employment to be about 8 times higher in states with high levels of white urban immigrants in 1930 than they were in states operating under a Jim Crow agricultural labor regime. 
+
+```{r postpred-socwork, fig.cap = "Estimated and observed relationships between social worker employment rates and focal settler colonial context variables, US States 1900 - 1930. Posterior prediction for expected teacher employment rate as dotted line (mean), with credible intervals shaded (0.5, 0.8, 0.95). Dots and text indicate observed values."}
+### blk_sharecrop
+pred_dat<-expand_grid(tot_pop = 1e6,
+            homestead_plus_morill = 0,
+            urban_immig_pc = 0,
+            blk_sharecrop_pc = seq(0,max(mdat$blk_sharecrop_pc), length.out = 100),
+            year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(socwork_m1,
+                  re_formula = NA)
+t<-pred_dat %>% 
+  filter(blk_sharecrop_pc < 0.251, blk_sharecrop_pc > 0.250) %>% 
+  group_by(year) %>% 
+  summarize(
+    med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3)
+p1<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = blk_sharecrop_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) +
+  geom_point(data = mdat,
+             aes(y = socwork / tot_pop * 1e3,
+                 x = blk_sharecrop_pc),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(blk_sharecrop_pc > 0.03),
+  #           aes(y = socwork / tot_pop * 1e3 + 0.004,
+  #               x = blk_sharecrop_pc,
+  #               label = STUSPS),
+  #           alpha = 0.75, size = 3) + 
+  facet_wrap(~year, nrow = 1) + 
+  guides(fill = "none") +
+  theme_bw() +
+  coord_cartesian(ylim = c(0,0.3)) + 
+  labs(y = "",
+       x = "Proportion of population Black tenant farmers")
+### homestead+morill
+pred_dat<-expand_grid(tot_pop = 1e6,
+                      homestead_plus_morill = seq(0,
+                                                  max(mdat$homestead_plus_morill),
+                                                  length.out = 100),
+                      urban_immig_pc = 0,
+                      blk_sharecrop_pc = 0,
+                      year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(socwork_m1,
+                  re_formula = NA)
+p2<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = homestead_plus_morill)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) +
+  geom_point(data = mdat,
+             aes(y = socwork / tot_pop * 1e3,
+                 x = homestead_plus_morill),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(homestead_plus_morill > 2e5),
+  #           aes(y = socwork / tot_pop * 1e3 + 0.004,
+  #               x = homestead_plus_morill,
+  #               label = STUSPS),
+  #           alpha = 0.75, size = 3) + 
+  guides(fill = "none") +
+  labs(x = "Homestead Acres Plus Morill Acres (millions) Distributed to Settlers",
+       y = "Social workers per 1,000 population") + 
+  facet_wrap(~year, nrow = 1) + 
+  coord_cartesian(ylim = c(0,0.3)) + 
+  scale_x_continuous(labels = function(x)x / 1e6) + 
+  theme_bw() 
+### urban immig
+pred_dat<-expand_grid(tot_pop = 1e6,
+                      homestead_plus_morill = 0,
+                      urban_immig_pc = seq(0,
+                                           max(mdat$urban_immig_pc),
+                                           length.out = 100),
+                      blk_sharecrop_pc = 0,
+                      year = c(1900, 1910, 1920, 1930)) %>% 
+  add_epred_draws(socwork_m1,
+                  re_formula = NA)
+t<-pred_dat %>% 
+  filter(urban_immig_pc > 0.25, urban_immig_pc < 0.255) %>% 
+  group_by(year) %>% 
+  summarize(
+    med = median(.epred) / 1e3,
+    lwr = quantile(.epred, 0.05) / 1e3,
+    upr = quantile(.epred, 0.95) / 1e3)
+p3<-ggplot(pred_dat,
+       aes(y = .epred / 1e3, x = urban_immig_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) +
+  geom_point(data = mdat,
+             aes(y = socwork / tot_pop * 1e3,
+                 x = urban_immig_pc),
+             size = 1, alpha = 0.5) + 
+  # geom_text(data = mdat %>% 
+  #             filter(urban_immig_pc > 0.02),
+  #           aes(y = socwork / tot_pop * 1e3 + 0.004,
+  #               x = urban_immig_pc,
+  #               label = STUSPS),
+  #           alpha = 0.75, size = 3) + 
+  guides(fill = "none") +
+  labs(x = "Proportion of population urban white immigrants",
+       y = "") + 
+  facet_wrap(~year, nrow = 1) + 
+  coord_cartesian(ylim = c(0,0.3)) + 
+  theme_bw() 
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+Across categories of employment, we find clear relationships between settler colonial contexts and levels of employment in welfare and carceral institutions. We argue that the rationally and temporally varying interests of settler elites determine the kinds of colonial projects they prioritize, reflected in the kinds of human infrastructure that they develop to pursue policy goals.
 
 ## Group quarters models
 
+Similar to employment, there are also clear relationships between settler colonial contexts and the magnitude of confinement in institutions across states between 1900 and 1930. Figure \@ref(fig:gq-m-vis) displays posterior distributions of focal parameters for models of the populations housed in institutional group quarters in the 1900, 1920, and 1930 US Census by state. We find that correctional populations were similar across contexts. By contrast, we find that populations housed in mental institutions, institutions for the poor, and institutions for the disabled were significantly higher in states with large urban white immigrant populations than in other states, and that these populations were significantly lower in states with large Black tenant farm populations than in other states. 
 
+```{r gq-m-vis, fig.cap = "Relationships between focal settler colonial contexts and populations housed in group quarters per capita, US States 1900 - 1930. Densities of posterior parameter estimates with credible intervals (0.66, 0.95). Panel 1 displays results for populations in correctional institutions, Panel 2 displays results for populations in institutions for the poor and disabled and in mental institutions."}
+#### extract posterior draws for b1, b2, b3, set up for plotting
+pdat<-prison_m1 %>%
+  gather_draws(c(b_scaleblk_sharecrop_pc,
+                 b_scaleurban_immig_pc,
+                 b_scalehomestead_plus_morill)) %>%
+  mutate(model = "1. Correctional institutions") %>%
+  bind_rows(
+    inst_m1 %>%
+      gather_draws(c(b_scaleblk_sharecrop_pc,
+                     b_scaleurban_immig_pc,
+                     b_scalehomestead_plus_morill)) %>%
+      mutate(model = "2. Asylums and poorhouses")) %>%
+  mutate(.variable = case_when(
+    .variable == "b_scaleblk_sharecrop_pc" ~
+      "B1: Black tenant\nfarmers per capita",
+    .variable == "b_scaleurban_immig_pc" ~
+      "B2: Urban white\nimmigrants\nper capita",
+    .variable == "b_scalehomestead_plus_morill" ~
+      "B3: Cumulative \nMorill +\nHomestead acres"))
+ggplot(pdat,
+       aes(x = .value,
+           y = .variable)) +
+  stat_halfeye() +
+  geom_vline(aes(xintercept = 0), lty = 2) +
+  labs(x = "Estimate",
+       y = "") +
+  facet_wrap(~model) +
+  theme_bw()
+```
 
-RAN BOARDING SCHOOL MODEL WITH DISCONTINUITY ON ACREAGE, IT WORKS WELL. 
+CONSISTENT WITH HISTORICAL WORK ON PREVALENCE OF EARLY THERAPEUTIC / WELFARE STATES. CITE ALL THAT STUFF. These institutions reflected enlightenment ideals about the FOUCAULT AND STUFF. But they also operated within ideological contexts of rigid racist classification and eugenic policy priorities (METZL ETC). Where they existed, therapeutic and welfarist institutions routinely excluded Black people. These data further illustrate that the geographic distribution of these facilities followed similar racial logics. Welfare and mental institutions were relatively rare in the Jim Crow South, and very common in states with large numbers of white immigrants in cities. 
+
+```{r gq-postpred-time, fig.cap = "Expected populations housed in group quarters per capita across varying settler colonial contexts, US States 1900 - 1930. Densities of posterior parameter estimates with credible intervals (0.66, 0.95)."}
+### set up sims for 1900, 1920, 1930 preds
+### for high on each context for prison_m1 and inst_m1
+t<-expand_grid(
+  year = c(1900, 1920, 1930),
+  blk_sharecrop_pc = c(0, 0.25),
+  urban_immig_pc = 0,
+  homestead_plus_morill = 0,
+  tot_pop = 1e6) %>% 
+  mutate(condition = 
+           ifelse(blk_sharecrop_pc == 0,
+                  "Low value", "High value"),
+         scen = "Black tenant farming") %>% 
+  bind_rows(
+    expand_grid(
+      year = c(1900, 1920, 1930),
+      blk_sharecrop_pc = c(0),
+      urban_immig_pc = c(0, 0.25),
+      homestead_plus_morill = 0,
+      tot_pop = 1e6) %>% 
+      mutate(condition = 
+               ifelse(urban_immig_pc == 0,
+                      "Low value", "High value"),
+             scen = "White urban immigrants")) %>% 
+    bind_rows(
+      expand_grid(
+      year = c(1900, 1920, 1930),
+      blk_sharecrop_pc = c(0),
+      urban_immig_pc = 0,
+      homestead_plus_morill = c(0, 10e6),
+      tot_pop = 1e6) %>% 
+      mutate(condition = 
+               ifelse(homestead_plus_morill == 0,
+                      "Low value", "High value"),
+             scen = "Homestead + Morill acres")) 
+t<-t%>% 
+  add_epred_draws(prison_m1,
+                  re_formula = NA) %>% 
+  mutate(model = "Prisons and jails") %>% 
+  bind_rows(t %>% 
+              add_epred_draws(inst_m1,
+                  re_formula = NA) %>% 
+              mutate(model = "Asylums and poorhouses"))
+
+ggplot(t,
+       aes(x = year, y = .epred/1e3,
+           color = condition)) + 
+  stat_pointinterval(position = position_dodge()) + 
+  labs(x = "Year", y = "Expected inmates per 1,000 pop.") + 
+  facet_wrap(model~scen) + 
+  theme_bw() + 
+  labs(color = "Context variable") + 
+  theme(legend.position = "bottom")
+```
+
+In Figure \@ref(fig:gq-postpred-time) we show how the physical confinement of persons in institutional group quarters shifted over time and across contexts between 1900 and 1930. Note that we exclude the 1910 US Census from group quarters analyses due to data quality concerns. We find that the confinement of people in institutions for the mentally ill, the poor, and the disabled was dramatically more common in states with large numbers of white urban immigrants than in other states. Our models show that confinement in these institutions was relatively less common in states with large numbers of Black tenant farmers than in states with few Black tenant farmers. And we see no statistically significant difference between states with high and low levels of Homestead and Morill act land redistribution. Rates of confinement in these kinds remained relatively stable between 1900 and 1920, then increasing substantially by 1930.
+
+Per capita levels of incarceration in correctional institutions were similar across contexts for all periods in our analyses, with relatively stable levels between 1900 and 1920, followed by an increase in incarceration rates in 1930. This homogeneity in carceral capacity is notable, given the differences in police employment described in Figure \@ref(fig:postpred-police). These findings illustrate that while states in the US South under Jim Crow and frontier states in the Midwest and West may have had relatively small police organizations compared to their peers in the urban Northeast and Midwest, the magnitude of their capacity for incarceration was similar. And while the absolute rate of incarceration was similar across states during this era, this should not diminish the importance of substantial differences in the conditions and contexts of confinement across places (CITE PRISON VARIATION LIT). Historical scholarship has clearly shown the salience of white supremacist and settler colonial logics for the development of early-modern policing and incarceration across US geographies (CITE CONVICT LEASE LIT, KLH ON California, NORTHEAST LIT, FRONTIER STUFF (MAYBE ROSS)). 
+
+## Boarding school models
+
+As shown in Figure \@ref(fig:bsts), the count of boarding schools operating annually in the US fluctuated around 200 schools operating between 1900 and 1930. We estimate a two stage zero-inflated model to separately estimate 1) the likelihood that a state had at least one boarding school during the focal period, then conditional on operating at least one boarding school 2) the number of schools operating with the state during a Census year. The posterior distributions of focal parameters are shown in Figure \@ref(fig:bs-m-mvs). We visualize the probability of operating at least one boarding school across focal contexts in Figure \@ref(fig:pr-bs). 
+
+```{r bs-m-mvs, fig.cap = "Relationships between focal settler colonial contexts and presence and count of Indian boarding shcools. Zero-inflated model described in equations 1 and 2. Panel 1 displays binary component of model (for presence of any boarding schools). Panel 2 displays count component of model for number of boarding schools, conditional on at least one boarding school in the state and year."}
+### zero component visual
+pdat<-bs_m1_z %>%
+  gather_draws(c(b_scaleblk_sharecrop_pc,
+                 b_scaleurban_immig_pc,
+                 b_scalehomestead_plus_morill)) %>%
+  mutate(model = "1. Boarding schools > 0") %>%
+  bind_rows(
+    bs_m1 %>%
+      gather_draws(c(b_scaleblk_sharecrop_pc,
+                     b_scaleurban_immig_pc,
+                     b_scalehomestead_plus_morill)) %>%
+      mutate(model = "2. Count when boarding schools > 0")) %>% 
+  mutate(.variable = case_when(
+    .variable == "b_scaleblk_sharecrop_pc" ~
+      "B1: Black tenant\nfarmers per capita",
+    .variable == "b_scaleurban_immig_pc" ~
+      "B2: Urban white\nimmigrants\nper capita",
+    .variable == "b_scalehomestead_plus_morill" ~
+      "B3: Cumulative \nMorill +\nHomestead acres"))
+ggplot(pdat,
+       aes(x = .value,
+           y = .variable)) +
+  stat_halfeye() +
+  geom_vline(aes(xintercept = 0), lty = 2) +
+  labs(x = "Estimate",
+       y = "") +
+  theme_bw() + 
+  facet_wrap(~model, 
+             scales = "free_x") 
+```
+
+We find that states with large redistributions of Native lands to settlers were far more likely to operate boarding schools during this period than were other states. We find that a (counterfactual) state that contained no lands redistributed under the Homestead or Morill acts in 1900 had an expected probability of containing boarding schools of about 0.51 [0.24, 0.77]. All states with large numbers or contemporary settler land redistribution contained at least one boarding school during this period. The expected probability reaches one at about 10 million acres distributed under the Homestead and Morill acts. Conditional on operating at least one boarding school, however, these states were similar to each other in the expected count of operating schools across the period (posterior expected count 6.3 [2.7, 12.6]). We find no statistically significant difference in the count of schools operating across high settler redistribution lands during this period. 
+
+The expected probability of operating an Indian boarding school was not significantly different across states with small and large white urban immigrant populations. Given the role of notorious facilities in the Northeast like Carlisle in Pennsylvania, this result is unsurprising. We do find that the expected count of facilities in states (conditional on having at least one facility) was generally lower in states with large urban immigrant populations than it was in states with small urban immigrant populations. 
+
+Boarding schools were relatively rare in the Jim Crow South. We find that states with large populations of Black tenant farmers had a near zero probability of operating an Indian boarding school in 1900. There were boarding schools operating in states like North Carolina, Arkansas, and Virginia during this era, but the majority of states in the South did not have any operating boarding schools between 1900 and 1930. 
+
+```{r pr-bs, fig.cap = "Probability of having at least one boarding school in 1900 across contexts, US states. Posterior expected values, dotted line (mean), credible intervals shaded (0.5, 0.8, 0.95)."}
+pred_dat<-expand_grid(tot_pop = 1e6,
+            homestead_plus_morill = seq(0, max(mdat[mdat$year==1900, "homestead_plus_morill"]),
+                                        length.out = 100),
+            urban_immig_pc = 0,
+            blk_sharecrop_pc = 0,
+            year = c(1900)) %>% 
+  add_epred_draws(bs_m1_z,
+                  re_formula = NA)
+t<-pred_dat %>% 
+  group_by(year, homestead_plus_morill) %>% 
+  summarize(
+    med = median(.epred),
+    lwr = quantile(.epred, 0.05),
+    upr = quantile(.epred, 0.95))
+p1<-ggplot(pred_dat,
+       aes(y = .epred , x = homestead_plus_morill / 1e6)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6) +
+  guides(fill = "none") +
+  theme_bw() +
+  # scale_x_log10() + 
+  labs(y = "Probability",
+       x = "Acres (millions)",
+       subtitle = "1. Homestead + Morill") + 
+  coord_cartesian(ylim = c(0,1))
+pred_dat<-expand_grid(tot_pop = 1e6,
+            homestead_plus_morill = 0,
+            urban_immig_pc = seq(0, max(mdat$urban_immig_pc), length.out = 100),
+            blk_sharecrop_pc = 0,
+            year = c(1900)) %>% 
+  add_epred_draws(bs_m1_z,
+                  re_formula = NA)
+t<-pred_dat %>% 
+  group_by(year, urban_immig_pc) %>% 
+  summarize(
+    med = median(.epred),
+    lwr = quantile(.epred, 0.05),
+    upr = quantile(.epred, 0.95))
+p2<-ggplot(pred_dat,
+       aes(y = .epred , x = urban_immig_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6)  +
+  guides(fill = "none") +
+  theme_bw() +
+  scale_x_log10() + 
+  labs(y = "",
+       x = "Proportion",
+       subtitle = "2. White urban immigrants")+ 
+  coord_cartesian(ylim = c(0,1))
+pred_dat<-expand_grid(tot_pop = 1e6,
+            homestead_plus_morill = 0,
+            urban_immig_pc = 0,
+            blk_sharecrop_pc =  seq(0, max(mdat$blk_sharecrop_pc), length.out = 100),
+            year = c(1900)) %>% 
+  add_epred_draws(bs_m1_z,
+                  re_formula = NA)
+t<-pred_dat %>% 
+  group_by(year, blk_sharecrop_pc) %>% 
+  summarize(
+    med = median(.epred),
+    lwr = quantile(.epred, 0.05),
+    upr = quantile(.epred, 0.95))
+p3<-ggplot(pred_dat,
+       aes(y = .epred , x = blk_sharecrop_pc)) +
+  stat_lineribbon(lty = 2,
+                  linewidth = 0.5,
+                  .width = 0.95,
+                  fill = "grey", alpha = 0.6)  +
+  guides(fill = "none") +
+  theme_bw() +
+  scale_x_log10() + 
+  labs(y = "",
+       x = "Proportion",
+       subtitle = "3. Black tenant farmers")+ 
+  coord_cartesian(ylim = c(0,1))
+grid.arrange(p1, p2, p3,
+             nrow = 1)
+```
+
+# Discussion
+
+The federal government, state governments, and local governments adopted and developed different configurations of welfare and carceral infrastructures in ways that closely relate to the geography of US settler colonial projects during the Progressive Era. HIGH LEVEL SUMMARY - NAME THE EMPIRICAL GROUPINGS! EXPLAIN HOW THEY RELATE THEORETICALLY TO SETTLER PROJECTS VIS A VIS A FUNCTIONALIST LOGIC (then apologize for being functionalist)
+
+States in the Jim Crow South, where settler white elites were deeply invested in the exploitation of Black labor and in a brutal regime of racial apartheid and terror, had relatively weak front-line social policy bureaucracies (reflected in low employment levels for teachers, police, and social workers) throughout this period. They also had less physical infrastructure characteristic of the early US welfare state, like poorhouses and mental institutions. However, these states tended to have incarceration levels near the national average. For all measures *except* incarceration, Jim Crow states exhibited relatively thin social policy states. These findings align with historical scholarship that has carefully documented the simultaneous brutality and ubiquity of a hybrid formal / informal regime of anti-Black racial terror with the routine underfunding and/or failure to develop core welfare state institutions across formerly slave states (CITE QUADAGNO, KATZNELSON, TOLNAY, BAKER, PERKINSON, OTHERS).
+
+Nation building and racial demographics were front-of-mind for settler elites in states where Native lands had been recently expropriated. A variety of initiatives had been undertaken by the federal government and by local policy makers to rapidly attract white settlers to these territories and to develop the social, cultural, and economic infrastructure that would fulfill and reinforce national settler colonial ideologies (REVISE). In states containing large amounts of Native lands granted to settlers and/or land-grant Universities, there were dramatically higher levels of teacher employment than in other states, while levels of police and social worker employment were comparable to other contemporary US states. The physical infrastructure of the carceral and welfare state was similar to other states, with one exception. While rates of confinement in correctional, mental, and proto-welfare institutions were similar to those in other states, these states were dramatically more likely than others to contain Indian boarding schools. Taken together, these findings suggest that states engaged in the early stages of Native land redistribution and white settlement were engaged in a trajectory of social state formation that was similar to other US states, with two exceptions. First, these states were heavily invested in education, suggesting aggressive efforts to build the social and cultural fabric of a settler nation in recently settled lands. Second, these states were heavily invested in the elimination of spatially proximate Native nations through the forced assimilation of their children. This dual approach, characteristic of settler colonial projects of elimination and replacement, was on full display in states in the Midwest, Mountain West, Southwest, Great Plains, and West Coast. 
+
+While Herrenvolk democracy prevailed in Jim Crow and Frontier (IS THIS THE RIGHT TERM??? I DON'T THINK SO, BUT WE NEED A CONCISE LABEL) states, these regimes developed distinct patterns of governance and policy infrastructure. CHECK OUT MCQUADE ON HERRENVOLK WELFARE STATE. THIS IS KEY TO NAIL
+
+States with large urban immigrant populations developed bureaucratically complex therapeutic-welfare states with significant physical infrastructure for the confinement of socially problematic populations (that was nevertheless intensely racially exclusive CITE SIMMONS HARTMAN ETC). This therapeutic and paternalistic model (which co-developed with nascent social and psychological disciplines) has become the ideal typical form of the modern welfare-carceral state in dominant historical and social scientific accounts (e.g. GARLAND, FOUCAULT, OTHERS). However, it was far from the only model articulated during the US Progressive era. As XXX HAS NOTED IN THEIR CRITIQUE OF FOUCAULT / GARLAND, ETC THE SOUTH WAS REALLY DIFFERENT, BUT STILL MODERN. RACIAL CAPITALISM CRITIQUES SUGGEST THAT UNIVERSALIST NARRATIVES ARE INCOMPLETE - RACIST LOGICS AND PROJECTS RESULTED IN HETEROGENEITY IN STATE BUILDING. BUT EVEN THESE CRITIQUES TYPICALLY FAIL TO ACCOUNT FOR THE MODEL THAT WAS DEVELOPED BY STATES SEEKING TO ELIMINATE NATIVE NATIONS AND BUILD NASCENT WHITE SETTLER NATIONS.  
+
+FUTURE WORK SHOULD TRACE THESE PATTERNS MOVING FORWARD. DIRECT FOLLOW UP IS TO DO A TRAJECTORY ANALYSIS ON THESE OUTCOMES. To what extent did these foundations influence trajectories? To what extent do trajectories impact present patterns? How did they become durable? How did they converge? Role of federalism? Lots of questions here. But we know that there are HUGE differences across states today, and in many cases, they mirror the kinds of patterns we observe here. We should better appreciate the deeply complicated causal processes that have created variation in logics and infrastructures for carceral and welfare states across places today. 
+
+These are three of the projects that were critical to settler colonialism in the early 20th c US. Not the only ones of course! Colonial processes deeply impacted the experiences of a broad range of groups and produced a range of distinct racialized social structures (CITES FOR MEXICO BORDER, MIGRANT WORKERS, CHINESE EXCLUSION, JAPANESE INTERNMENT, PHILIPPINES COLONIZATION, AND OTHERS). *Here, we narrowly focus on three settler colonial projects to illustrate how a macro-comparative approach can be helpful in validating core findings in historical scholarship and in incorporating the insights of critical scholarship on settler colonization and racial capitalism into some of the core methods of political, economic, and comparative historical sociology REVISE.*
+
+AK AND HI EXCLUDED, EVEN THOUGH SETTLER COLONIZATION WAS V IMPORTANT THERE! THE DATA AND LAW ARE V DIFFERENT BECAUSE OF STATEHOOD TIMING. ALSO SHOULD CONSIDER OTHER COLONIES OF US LIKE PR, GUAM, USVI, PHILLIPINES, ETC

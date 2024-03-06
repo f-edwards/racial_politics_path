@@ -5,146 +5,300 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-## PRELIMINARY MODELS
+explore model fit under alternate specifications. look at bivars and functional relationships b/w outcomes and focal predictors
 
-IMPORTANCE OF URBAN? ADD EXTRA PLOT HERE? BLK / URBAN?
+describe prior selection
 
-1) jim crow salience (can we define as brutal coupling of formal / informal? less state capacity built for maintenance / strategic underinvestment)
-2) exclusion / formal soc control salience in urban non-S
-
-
-employment trajectories look kinda log-linear. almost certainly non-linear, so need a curve on trajectories regardless. log probably solves it well enough.
-
-q1: salience of settler expropriotion -> state formation
-
-four models, each employment outcome + children in poverty institutions
-
-start with lm for log(rates)
-
-trouble fitting models for sparse data (e.g. social workers, children in gq), but works fine and in expected directions for teachers, police.
-
-switch to brms for estimation on tricky ones
 
 ```{r}
-### FIT PROBLEM WAS WITH EARLY YEARS NEAR ZERO AND LOW VARIANCE
-model_dat <- dat %>%
-  filter(year>=1880) %>%
-  mutate(police_rate = (police + 1) / tot_pop * 1e5,
-         socwork_rate = (socwork + 1) / tot_pop * 1e5,
-         teacher_rate = (teachers + 1) / tot_pop * 1e5,
-         child_inst_rate = (child_inst_poor_disabled + 0.1) /
-           children * 1e5,
-         prop_blk = (blk + 1) / tot_pop,
-         prop_urban_immig = urban_immig_pop / tot_pop,
-         hsclaim_prop = hs_claims / tot_pop,
-         year = scale(year))
+## Diagnostics for model fit
+# focus on zero inflated processes
+# and parsimony / convergence trade offs
+# using default brms priors for ease
+# log(children) not improving teacher fit. leaving it out
 
-m_police<-brm(log(police_rate) ~
-                 scale(hsclaim_prop) +
-                 scale(prop_urban_immig) +
-                 scale(prop_blk) +
-                 scale(log(blk_sharecrop + 1)) +
-                 year +
-                 (1 + year|state),
-               data = model_dat)
+mdat<-pop %>% 
+  left_join(dist) %>% 
+  left_join(bs)
 
-m_teacher<-brm(log(teacher_rate) ~
-                 scale(hsclaim_prop) +
-                 scale(prop_urban_immig) +
-                 scale(prop_blk) +
-                 scale(log(blk_sharecrop + 1)) +
-                 year +
-                 (1 + year|state),
-               data = model_dat)
 
-m_socwork<-brm(log(socwork_rate) ~
-                 scale(hsclaim_prop) +
-                 scale(prop_urban_immig) +
-                 scale(prop_blk) +
-                 scale(log(blk_sharecrop + 1)) +
-                 year +
-                 (1 + year|state),
-               data = model_dat)
+###### teachers - easiest outcome given power
+### baseline model as reported in eq (1) in ms
+t_m1<-brm(
+  teachers ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    scale(I(urban_immig_pop / tot_pop)) +
+    scale(morill_acres_cum + homestead_acres_cum) +
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat
+) 
 
-sc_teacher<-lmer(log(teacher_rate) ~
-              scale(hsclaim_prop) +
-              year +
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
+### prior visual
+# teachers_m1 %>% 
+#   prior_summary() %>% 
+#   parse_dist(prior) %>% 
+#   ggplot(aes(y = class, dist = .dist, args = .args)) + 
+#   stat_dist_halfeye()
 
-sc_socwork<-brm(log(socwork_rate) ~
-              scale(hsclaim_prop) +
-              year +
-              (1 + year|state),
-            data = model_dat)
+### add regime zero inflation / threshold adjustments
+t_m2<-brm(
+  teachers ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    I(blk / tot_pop > 0.3) +  
+    scale(I(urban_immig_pop / tot_pop)) +
+    I(urban_pop>2e5) + 
+    scale(morill_acres_cum + homestead_acres_cum) +
+    I((morill_acres_cum + homestead_acres_cum)>0) + 
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat
+) 
 
-sc_gq<-brm(log(child_inst_rate) ~
-              scale(hsclaim_prop) +
-              year +
-              (1 + year|state),
-            data = model_dat)
+t_m3<-brm(
+  teachers ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    scale(I(urban_immig_pop / tot_pop)) +
+    scale(morill_acres_cum + homestead_acres_cum) +
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat
+) 
 
-jc_police<-lmer(log(police_rate) ~
-              scale(prop_blk) +
-              year +
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
+loo_compare(loo(t_m1), loo(t_m2))
 
-jc_teacher<-lmer(log(teacher_rate) ~
-              scale(prop_blk) +
-              year +
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
+#### cops
 
-jc_socwork<-lmer(log(socwork_rate) ~
-              scale(prop_blk) +
-              year +
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
+p_m1<-brm(
+  police ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    scale(I(urban_immig_pop / tot_pop)) +
+    scale(morill_acres_cum + homestead_acres_cum) +
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat
+) 
 
-jc_gq<-lmer(log(child_inst_rate) ~
-              scale(prop_blk) +
-              year +
-              (1 + year|state),
-            data = model_dat,
-            control=lmerControl(optimizer="nloptwrap",
-                                optCtrl=list(maxfun=2e5)))
-```
+### add regime zero inflation / threshold adjustments
+p_m2<-brm(
+  police ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    I(blk / tot_pop > 0.3) +  
+    scale(I(urban_immig_pop / tot_pop)) +
+    I(urban_pop>2e5) + 
+    scale(morill_acres_cum + homestead_acres_cum) +
+    I((morill_acres_cum + homestead_acres_cum)>0) + 
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat
+) 
 
-This all looks fine. How do I want to visualize this?
+loo_compare(loo(p_m1), loo(p_m2))
 
-we'll eventually do trajectory visuals for each regime type - what is the expected trajectory under different regimes, where do we end up in 1930? Think about how to handle to intercepts / slopes. What would a zero mean? pulling out everything not directly in national trend and regime measures. is that what I'm after? I guess I really do just want the regime-specific trend lines, in which case E[rate | regime] should zero out the individual idioscyncracies. it's oversimplified, but that should be ok. Just be super clear on what the iterpretation is on prediction. it's not a hypothetical state, its the mean expectation for the slope of the regime var.
+#### loo shows no meaningful difference bw m1, m2 for both teachers and cops
 
-model is
+###### GQ MODELS
 
-\[\hat{Y} = \alpha + \beta \textrm{Regime} + \delta year + \epsilon\]
+mdat <- mdat %>% 
+  mutate(inst_gq = inst_mental + 
+           inst_poor_disabled)
 
-Here we are very much interested just in $\beta$, the rest are nuissance parameters. that works. can vis e[state type] under diffferent REGIME sets.
+prison_m1<-brm(
+  floor(inst_correctional) ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    scale(I(urban_immig_pop / tot_pop)) +
+    scale(morill_acres_cum + homestead_acres_cum) +
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat %>% 
+    filter(year!=1910))
 
-Q: are there places with competing regime sets? CA, WA, others? where we need a multivariate regime model?
+prison_m2<-brm(
+  floor(inst_correctional) ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    I(blk / tot_pop > 0.3) +  
+    scale(I(urban_immig_pop / tot_pop)) +
+    I(urban_pop>2e5) + 
+    scale(morill_acres_cum + homestead_acres_cum) +
+    I((morill_acres_cum + homestead_acres_cum)>0) + 
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat %>% 
+    filter(year!=1910))
 
-```{r}
-new_dat<-data.frame(year =  c(1.3, 1.3, 1.3),
-                    hsclaim_prop = c(0, 0.05, 0.15))
-t<-predict(sc_police,
-           newdata = new_dat,
-           re.form = ~0,
-           type = "link")
+loo_compare(loo(prison_m1), loo(prison_m2))
 
-t1<-predict(sc_teacher,
-           newdata = new_dat,
-           re.form = ~0,
-           type = "link")
+### no meaningful difference in models according to loo
+### NJ 1900 shows NA
+### looks like failed joins. investigate!
+### ballparking numbers for prisoners against https://bjs.ojp.gov/content/pub/pdf/p2581.pdf
+### not too bad! 1925 n is 91,689; 1930 is 129,453. I report 215682 for 1930, 79073 for 1920 
+# year gqtype  gq_pop
+# 1  1880      2  49272 
+# 2  1900      2  71491 
+# 3  1910      2 135323.
+# 4  1920      2  79073 
+# 5  1930      2 215682 
+### 1910 is discontinuous - that's the sample year, not full census. check docs again
+# From IPUMS
+# User Note: The Census Bureau did not collect information on the type of group quarters in the 1910 census. 
+# This is reflected in the 1910 complete count file, where all group-quarters units have been assigned a GQ code of 4 (other group quarters). 
+# Values for GQ, GQTYPE, and GQFUNDS in the 1910 1% and 1.4% samples have been imputed.
 
-exp(t1)
+welfgq_m1<-brm(
+  floor(inst_gq) ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    scale(I(urban_immig_pop / tot_pop)) +
+    scale(morill_acres_cum + homestead_acres_cum) +
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat %>% 
+    filter(year!=1910))
+
+welfgq_m2<-brm(
+  floor(inst_gq) ~ 
+    scale(I(blk_sharecrop / tot_pop)) +
+    I(blk / tot_pop > 0.3) +  
+    scale(I(urban_immig_pop / tot_pop)) +
+    I(urban_pop>2e5) + 
+    scale(morill_acres_cum + homestead_acres_cum) +
+    I((morill_acres_cum + homestead_acres_cum)>0) + 
+    log(children) + 
+    factor(year) + 
+    (1|STUSPS) + 
+    offset(log(tot_pop)),
+  family = negbinomial(),
+  data = mdat %>% 
+    filter(year!=1910))
+
+loo_compare(loo(welfgq_m1), loo(welfgq_m2))
+
+# boarding schools models use 1890 - 1920 time period
+# models need to be specified differntly because of census mismatch
+# may need to increase samples to up ESS
+# but for a simple descriptive, this looks fine IMO
+
+bs_mdat<-dist %>% 
+  left_join(bs) %>% 
+  left_join(agents %>% 
+              filter(year!=1910)) %>% # 1910 is incomplete data
+  filter(year>=1900, year<=1930) # 1900 - 1920 for enrollment / attendance, 1900 - 1930 for school count
+#### maybe run this zero inflated,
+
+######## BIVARIATES AND DIAGNOSTICS
+ggplot(bs_mdat %>% 
+         filter(boarding_schools>0),
+       aes(x = log(homestead_acres_cum + morill_acres_cum),
+           y = boarding_schools,
+           color = STUSPS)) + 
+  geom_point() + 
+  facet_wrap(~division)
+
+### stability in boarding_schools - increase in acres distributed, not much to model other than average
+### only action is decrease in time series at end, so that's a bit funky
+
+ggplot(bs_mdat %>% 
+         filter(boarding_schools>0,
+                morill_acres_cum>0),
+       aes(x = log(homestead_acres_cum + morill_acres_cum), 
+           y = boarding_n_acc,
+           color = STUSPS)) + 
+  geom_point() + 
+  facet_wrap(~division)
+
+### similar look here. some increases in bs pops, e.g. in SD, AZ, OK, but mostly stable over the period
+### some clear increases and maybe log-linear things going on, but don't want to overfit. 
+
+ggplot(bs_mdat,
+       aes(x = boarding_schools,
+           fill = homestead_acres_cum>0))+ 
+  geom_density(alpha = 0.2)
+
+#### OK - zero inflation is way to go, but there's no 1900 - 1930 variation in the binary
+### boarding_schools>0 within states, so panel model makes no sense for binary outcome
+### subset to start of period condition, then conditional on nonzero in 1900, look at count
+
+#### LEANING TOWARD THE SCHOOL COUNT ONLY APPROACH. THE CAPACITY / ENROLLMENT NUMBERS NEED MORE WORK I THINK
+### START HERE TOMORROW. FOLD THE REVISED NO LOG(KIDS) MODEL IN, FOLD THE ZINFL MODEL IN
+
+bs_m1_z<-brm(boarding_schools>0 ~ 
+               scale(I(blk_sharecrop / tot_pop)) +
+               scale(I(urban_immig_pop / tot_pop)) +
+               scale(morill_acres_cum + homestead_acres_cum),
+             family = bernoulli(link = "logit"),
+             data = mdat %>% 
+               filter(year == 1900))
+
+bs_m1<-brm(boarding_schools ~ 
+             scale(I(blk_sharecrop / tot_pop)) +
+             scale(I(urban_immig_pop / tot_pop)) +
+             scale(morill_acres_cum + homestead_acres_cum) +
+             factor(year) +
+             (1|STUSPS),
+           family = negbinomial(),
+           data = mdat %>% 
+             filter(boarding_schools>0))
+
+### zero infl model for capacity
+
+cap_m1_z<-brm(boarding_n_acc>0 ~ 
+            scale(I(blk_sharecrop / tot_pop)) +
+            scale(I(urban_immig_pop / tot_pop)) +
+            scale(morill_acres_cum + homestead_acres_cum) ,
+            # factor(year) + 
+            # (1|STUSPS),
+          family = bernoulli(link = "logit"),
+          data = mdat %>% 
+            filter(year == 1900))
+
+cap_m1<-brm(boarding_n_acc ~ 
+            scale(I(blk_sharecrop / tot_pop)) +
+            scale(I(urban_immig_pop / tot_pop)) +
+            scale(morill_acres_cum + homestead_acres_cum) +
+            factor(year) +
+            (1|STUSPS),
+          family = negbinomial(),
+          data = mdat %>% 
+            filter(boarding_n_acc>0))
+
+#### model vis
+# bivar - looks like it's just a binary relationship, the linear component isn't adding much here
+ggplot(bs_mdat %>% 
+         filter(boarding_n_acc >0),
+       aes(x = morill_acres_cum + homestead_acres_cum,
+           y = boarding_n_acc,
+           color = STUSPS)) + 
+  geom_point()
+
+ggplot(bs_mdat %>% 
+         filter(boarding_n_acc >0),
+       aes(x = morill_acres_cum + homestead_acres_cum,
+           y = boarding_schools,
+           color = STUSPS)) + 
+  geom_point()
 
 
 ```

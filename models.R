@@ -2,11 +2,13 @@
 
 mdat<-pop %>% 
   left_join(dist) %>% 
-  left_join(bs)
+  left_join(bs) %>% 
+  mutate(blk_sharecrop_pc = blk_sharecrop / tot_pop,
+         urban_immig_pc = urban_immig_pop / tot_pop,
+         homestead_plus_morill = homestead_acres_cum + morill_acres_cum)
 
 #### set weakly informative priors for model parameters
-### b ~ N(0, 20)
-### use brms defaults for variance params (PEG THEM DOWN)
+### for m1
 
 priors_m1<-c(
   prior(normal(0, 10), class = b),
@@ -14,15 +16,12 @@ priors_m1<-c(
   prior(student_t(3, 0, 2.5), class = sd),
   prior(gamma(0.01, 0.01), class = shape))
 
-
-
 ### fit HMC model with brms
-teachers_m1_bayes<-brm(
+teachers_m1<-brm(
   teachers ~ 
-    scale(I(blk_sharecrop / tot_pop)) +
-    scale(I(urban_immig_pop / tot_pop)) +
-    scale(morill_acres_cum + homestead_acres_cum) +
-    log(children) + 
+    scale(blk_sharecrop_pc) +
+    scale(urban_immig_pc) +
+    scale(homestead_plus_morill) +
     factor(year) + 
     (1|STUSPS) + 
     offset(log(tot_pop)),
@@ -31,20 +30,11 @@ teachers_m1_bayes<-brm(
   data = mdat
 ) 
 
-
-### prior visual
-# teachers_m1_bayes %>% 
-#   prior_summary() %>% 
-#   parse_dist(prior) %>% 
-#   ggplot(aes(y = class, dist = .dist, args = .args)) + 
-#   stat_dist_halfeye()
-
-cops_m1_bayes<-brm(
+cops_m1<-brm(
   police ~ 
-    scale(I(blk_sharecrop / tot_pop)) +
-    scale(I(urban_immig_pop / tot_pop)) +
-    scale(morill_acres_cum + homestead_acres_cum) +
-    log(children) + 
+    scale(blk_sharecrop_pc) +
+    scale(urban_immig_pc) +
+    scale(homestead_plus_morill) +
     factor(year) + 
     (1|STUSPS) + 
     offset(log(tot_pop)),
@@ -52,12 +42,11 @@ cops_m1_bayes<-brm(
   data = mdat
 )
 
-socwork_m1_bayes<-brm(
+socwork_m1<-brm(
   socwork ~ 
-    scale(I(blk_sharecrop / tot_pop)) +
-    scale(I(urban_immig_pop / tot_pop)) +
-    scale(morill_acres_cum + homestead_acres_cum) +
-    log(children) + 
+    scale(blk_sharecrop_pc) +
+    scale(urban_immig_pc) +
+    scale(homestead_plus_morill) +
     factor(year) + 
     (1|STUSPS) + 
     offset(log(tot_pop)),
@@ -70,90 +59,57 @@ mdat <- mdat %>%
   mutate(inst_gq = inst_mental + 
            inst_poor_disabled)
 
-prison_gq_m_bayes<-brm(
+prison_m1<-brm(
   floor(inst_correctional) ~ 
-    scale(I(blk_sharecrop / tot_pop)) +
-    scale(I(urban_immig_pop / tot_pop)) +
-    scale(morill_acres_cum + homestead_acres_cum) +
-    log(children) + 
+    scale(blk_sharecrop_pc) +
+    scale(urban_immig_pc) +
+    scale(homestead_plus_morill) +
     factor(year) + 
     (1|STUSPS) + 
     offset(log(tot_pop)),
   family = negbinomial(),
-  priors = priors_m1,
-  data = mdat)
+  prior = priors_m1,
+  data = mdat %>% 
+    filter(year!=1910))
 
-inst_gq_m_bayes<-brm(
+inst_m1<-brm(
   floor(inst_gq) ~ 
-    scale(I(blk_sharecrop / tot_pop)) +
-    scale(I(urban_immig_pop / tot_pop)) +
-    scale(morill_acres_cum + homestead_acres_cum) +
-    log(children) + 
+    scale(blk_sharecrop_pc) +
+    scale(urban_immig_pc) +
+    scale(homestead_plus_morill) +
     factor(year) + 
     (1|STUSPS) + 
     offset(log(tot_pop)),
   family = negbinomial(),
-  priors = priors_m1,
-  data = mdat)
+  prior = priors_m1,
+  data = mdat %>% 
+    filter(year!=1910))
 
 # boarding schools models use 1890 - 1920 time period
 # models need to be specified differntly because of census mismatch
 # may need to increase samples to up ESS
 # but for a simple descriptive, this looks fine IMO
 
-bs_mdat<-dist %>% 
-  filter(year >= 1890, year<=1920, year!=1910) %>% 
-  mutate()
+priors_mz<-priors_m1<-c(
+  prior(normal(0, 10), class = b),
+  prior(normal(0, 10), class = Intercept))
 
-#### maybe run this zero inflated
+bs_m1_z<-brm(boarding_schools>0 ~ 
+               scale(blk_sharecrop_pc) +
+               scale(urban_immig_pc) +
+               scale(homestead_plus_morill) ,
+             family = bernoulli(link = "logit"),
+             prior = priors_mz,
+             data = mdat %>% 
+               filter(year == 1900))
 
-bs_m_bayes<-brm(boarding_schools ~ 
-                  scale(I(morill_acres_cum + homestead_acres_cum > 0)) +
-                  scale(I(morill_acres_cum + homestead_acres_cum)) +
-                  (1|STUSPS) + 
-                  (1|year),
-                family = negbinomial(),
-                data = bs_mdat)
-
-### zero infl model for capacity
-
-bscap_m_bayes_bin<-brm(boarding_n_acc > 0 ~ 
-                          I((morill_acres_cum + homestead_acres_cum)>0) +
-                          scale(I(morill_acres_cum + homestead_acres_cum)) +
-                          (1|STUSPS) + 
-                          (1|year),
-                        family = bernoulli(link = "logit"),
-                        data = bs_mdat)
-
-bscap_m_bayes<-brm(boarding_n_acc ~ 
-                     I((morill_acres_cum + homestead_acres_cum)>0) +
-                     scale(I(morill_acres_cum + homestead_acres_cum)) +
-                     (1|STUSPS) + 
-                     (1|year),
-                   family = negbinomial(),
-                   data = bs_mdat %>% 
-                     filter(boarding_n_acc>0))
-
-#### model vis
-# bivar - looks like it's just a binary relationship, the linear component isn't adding much here
-ggplot(bs_mdat %>% 
-         filter(boarding_n_acc >0),
-       aes(x = morill_acres_cum + homestead_acres_cum,
-           y = boarding_n_acc,
-           color = STUSPS)) + 
-  geom_point()
-
-ggplot(bs_mdat %>% 
-         filter(boarding_n_acc >0),
-       aes(x = morill_acres_cum + homestead_acres_cum,
-           y = boarding_schools,
-           color = STUSPS)) + 
-  geom_point()
-
-bsenroll_m_bayes<-brm(floor(students_enroll) ~ 
-                        I(morill_acres_cum + homestead_acres_cum > 0) +
-                        scale(I(morill_acres_cum + homestead_acres_cum)) +
-                        (1|STUSPS) + 
-                        (1|year),
-                      family = negbinomial(),
-                      data = bs_mdat)
+bs_m1<-brm(boarding_schools ~ 
+             scale(blk_sharecrop_pc) +
+             scale(urban_immig_pc) +
+             scale(homestead_plus_morill) +
+             factor(year) +
+             (1|STUSPS),
+           family = negbinomial(),
+           prior = priors_m1,
+           data = mdat %>% 
+             filter(boarding_schools>0))
