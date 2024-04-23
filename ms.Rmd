@@ -21,10 +21,12 @@ library(tidybayes)
 library(rstan)
 library(knitr)
 library(trackdown)
-# trackdown::trackdown_auth_configure(path = "client_secret_243891325977-kgvbep6m6eb8t2feb8rvu9fneo8d6msa.apps.googleusercontent.com.json")
-# trackdown::update_file(file = "ms.Rmd", 
+trackdown::trackdown_auth_configure(path = "client_secret_243891325977-kgvbep6m6eb8t2feb8rvu9fneo8d6msa.apps.googleusercontent.com.json")
+# trackdown::update_file(file = "ms.Rmd",
 #                        hide_code = T,
 #                        rich_text = T)
+trackdown::download_file(file = "ms.Rmd")
+
 options(tigris_use_cache = T)
 options(scipen = 999)
 options(dplyr.print_max = 30)
