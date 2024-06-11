@@ -71,3 +71,6 @@ dat <- data.frame(state = state.abb,
   
 dat %>% 
   write_csv("./data/temp_population_ts.csv")
+
+
+
